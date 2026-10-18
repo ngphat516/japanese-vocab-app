@@ -1,0 +1,1114 @@
+{
+  "words": [
+    {
+      "id": "1000",
+      "kanji": [
+        {
+          "text": "緊張",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "きんちょう",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "tension"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1001",
+      "kanji": [
+        {
+          "text": "ゆるむ",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "ゆるむ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "loosen"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1002",
+      "kanji": [
+        {
+          "text": "橋",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "はし",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "bridge"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1003",
+      "kanji": [
+        {
+          "text": "箸",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "はし",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "chopsticks"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1004",
+      "kanji": [
+        {
+          "text": "端",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "はし",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "edge"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1005",
+      "kanji": [
+        {
+          "text": "学校",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "がっこう",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "school"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1006",
+      "kanji": [
+        {
+          "text": "学生",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "がくせい",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "student"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1007",
+      "kanji": [
+        {
+          "text": "先生",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "せんせい",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "teacher"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1008",
+      "kanji": [
+        {
+          "text": "日本",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "にほん",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "Japan"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1009",
+      "kanji": [
+        {
+          "text": "日本語",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "にほんご",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "Japanese"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1010",
+      "kanji": [
+        {
+          "text": "本",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "ほん",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "book"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1011",
+      "kanji": [
+        {
+          "text": "水",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "みず",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "water"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1012",
+      "kanji": [
+        {
+          "text": "火",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "ひ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "fire"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1013",
+      "kanji": [
+        {
+          "text": "木",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "き",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "tree"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1014",
+      "kanji": [
+        {
+          "text": "山",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "やま",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "mountain"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1015",
+      "kanji": [
+        {
+          "text": "川",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "かわ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "river"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1016",
+      "kanji": [
+        {
+          "text": "空",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "そら",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "sky"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1017",
+      "kanji": [
+        {
+          "text": "雨",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "あめ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "rain"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1018",
+      "kanji": [
+        {
+          "text": "電車",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "でんしゃ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "train"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1019",
+      "kanji": [
+        {
+          "text": "駅",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "えき",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "station"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1020",
+      "kanji": [
+        {
+          "text": "食べる",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "たべる",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "eat"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1021",
+      "kanji": [
+        {
+          "text": "飲む",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "のむ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "drink"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1022",
+      "kanji": [
+        {
+          "text": "行く",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "いく",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "go"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1023",
+      "kanji": [
+        {
+          "text": "見る",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "みる",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "see"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1024",
+      "kanji": [
+        {
+          "text": "聞く",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "きく",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "hear"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1025",
+      "kanji": [
+        {
+          "text": "話す",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "はなす",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "speak"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1026",
+      "kanji": [
+        {
+          "text": "書く",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "かく",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1027",
+      "kanji": [
+        {
+          "text": "読む",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "よむ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "read"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1028",
+      "kanji": [
+        {
+          "text": "休む",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "やすむ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "rest"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1029",
+      "kanji": [
+        {
+          "text": "遊ぶ",
+          "common": true
+        }
+      ],
+      "kana": [
+        {
+          "text": "あそぶ",
+          "common": true,
+          "appliesToKanji": [
+            "*"
+          ]
+        }
+      ],
+      "sense": [
+        {
+          "partOfSpeech": [
+            "n"
+          ],
+          "appliesToKanji": [
+            "*"
+          ],
+          "appliesToKana": [
+            "*"
+          ],
+          "gloss": [
+            {
+              "lang": "en",
+              "text": "play"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

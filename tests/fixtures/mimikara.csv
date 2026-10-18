@@ -1,0 +1,4 @@
+unit,no,word,reading,meaning_vi,examples,usage,collocations,synonyms,antonyms,audio
+5,357,緊張,きんちょう,căng thẳng,"[{""ja"": ""発表[はっぴょう]の前[まえ]に{{緊張[きんちょう]した}}。"", ""vi"": ""Tôi căng thẳng trước buổi trình bày.""}]","{""context"": ""今[いま]"", ""variants"": [{""ja"": ""{{緊張[きんちょう]する}}"", ""correct"": true}, {""ja"": ""緊張だ"", ""correct"": false}], ""vi"": ""Cách dùng trong fixture tự bịa.""}","[""緊張がゆるむ""]","[{""text"": ""不安""}]","[{""text"": ""安心""}]",invented.mp3
+5,358,,はし,cầu theo ngữ cảnh tự bịa,,,,,,
+6,359,試作語,しさくご,từ thử nghiệm tự bịa,,,,,,
