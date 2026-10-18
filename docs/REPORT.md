@@ -1,5 +1,9 @@
 # Báo cáo triển khai backend P0
 
+Project đã chuyển thành monorepo: backend ở `apps/backend`, frontend ở `apps/frontend`.
+Các lệnh uv và đường dẫn app/, tests/, data/ dưới đây tính từ `apps/backend`;
+Compose, .env và scripts/backup.ps1 dùng chung ở root.
+
 Đã triển khai và kiểm chứng 33 mã P0 cho backend MVP. Frontend chưa triển khai.
 Code nằm trong project này; config local .env có secret sinh ngẫu nhiên và được Git bỏ qua.
 Ngày kiểm chứng: 18/10/2026. Nguồn yêu cầu và các phần P1/P2 được giữ trong requirements.md.
@@ -9,11 +13,11 @@ Ngày kiểm chứng: 18/10/2026. Nguồn yêu cầu và các phần P1/P2 đư�
 | Kiểm tra | Kết quả |
 | --- | --- |
 | Python / dependency | Python 3.12.5, uv sync --frozen thành công, có uv.lock |
-| uv run pytest --cov | **77 passed**, 0 failed, 0 errors, 0 skipped; 55,65 giây |
+| uv run pytest --cov | **77 passed**, 0 failed, 0 errors, 0 skipped; 42,46 giây |
 | Coverage service/NLP | **95.67%**; gate 70% đạt |
 | Coverage từng service / nlp | scripts/check_coverage.py đạt cho tất cả module P0 |
 | uv run ruff check . | All checks passed |
-| uv run ruff format --check . | 94 files already formatted |
+| uv run ruff format --check . | 91 files already formatted |
 | DB integration | Testcontainers pgvector/pgvector:pg16, Alembic, transaction rollback mỗi test |
 | docker compose up --build -d | Build thành công; DB healthy; API running |
 | Alembic trên DB Compose | 0001_p0 (head) |

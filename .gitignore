@@ -5,9 +5,12 @@ __pycache__/
 .coverage
 htmlcov/
 .env
-data/*
-!data/.gitkeep
-!data/README.md
+/apps/backend/data/*
+!/apps/backend/data/.gitkeep
+!/apps/backend/data/README.md
+node_modules/
+.next/
+dist/
 *.egg-info/
 coverage.json
 backups/

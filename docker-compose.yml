@@ -1,3 +1,4 @@
+name: japanese-vocab-app
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -13,7 +14,7 @@ services:
       timeout: 3s
       retries: 30
   api:
-    build: .
+    build: ./apps/backend
     environment:
       DATABASE_URL: postgresql+asyncpg://vocab:${POSTGRES_PASSWORD:-vocab}@db:5432/vocab
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env from .env.example}
@@ -25,3 +26,5 @@ services:
         condition: service_healthy
 volumes:
   postgres_data:
+    name: ${POSTGRES_VOLUME_NAME:-japanese-vocab-app_postgres_data}
+    external: ${POSTGRES_VOLUME_EXTERNAL:-false}

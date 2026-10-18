@@ -1,5 +1,8 @@
 # Quyết định triển khai P0
 
+Backend nằm trong `apps/backend`; các đường dẫn app/, tests/, data/ và lệnh uv
+trong các quyết định cũ được hiểu tương đối với thư mục backend.
+
 1. Tài liệu Word được trích đầy đủ theo thứ tự sang requirements.md. Yêu cầu trực tiếp trong chat được ưu tiên khi khác tài liệu.
 2. Mimikara chưa có nguồn thật: adapter đọc CSV/XLSX cột unit, no, word, reading, meaning_vi, examples, usage, collocations, synonyms, antonyms. Các cột danh sách là JSON; examples gồm ja/vi, usage là object context/variants/vi. Fixture là nội dung tự biên soạn. Edition lưu ở textbook, cùng adapter dùng cho cả hai edition.
 3. Chưa xác định nguồn Hán Việt: chỉ đọc data/hanviet.csv (kanji,hanviet), nhiều âm phân cách bằng dấu |; không tải dữ liệu trong test.
@@ -21,3 +24,4 @@
 19. Scan không có text layer hữu ích; giữ OCR, số trang và SHA-256. Mimikara giữ số mục in trên sách; lesson theo trang PDF để tránh đoán unit. Kanji/Dokkai và phần không có bảng từ được lập chỉ mục từ tự động, gắn nhãn rõ. Chỉ nhận cách đọc khớp OCR/JMdict hoặc duy nhất trong JMdict; trường hợp không xác định giữ ở file review, không tạo cách đọc giả. Nghĩa tiếng Anh lấy từ PDF khi trích được, hoặc ghi rõ nguồn JMdict; không tạo nghĩa Việt. Mọi mục OCR đánh dấu cần đối chiếu nguồn. Đặt private không thay thế quyền sử dụng nội dung.
 20. Bốn PDF khác nhau có tổng 830 trang; hai file GOI trùng SHA-256 chỉ xử lý một lần. Shinkanzen GOI, Kanji và Dokkai ở lượt này đều là chỉ mục từ tự động từ ngữ cảnh Nhật theo trang, chưa phải bản số hóa cấu trúc bài học của nhà xuất bản. Mimikara đối chiếu được 842/880 số mục; 38 số chưa chắc được giữ riêng để rà soát. Level N3 là metadata sách, không gán JLPT N3 cho từng từ. Import local lưu SHA-256 payload để chạy lại an toàn; chỉ chọn ứng viên khớp chính xác cặp kanji/kana và không tự chọn khi còn mơ hồ.
 21. OCR có thể làm mất bullet trước câu ví dụ. Khi chuyển Mimikara, dòng có kana kết thúc bằng dấu câu Nhật được giữ dưới block example; không yêu cầu bullet còn nguyên. Các dòng chưa phân loại chắc được giữ ở note/raw. Đã sao lưu DB và loại 66 entry OCR cũ không còn trong JSON sau khi đối chiếu; bản trước sửa nằm ở data/pdf_imports/superseded_ocr_entries.json.
+22. Theo yêu cầu người dùng, FE và BE dùng một monorepo: apps/frontend và apps/backend, không tạo repo riêng. Frontend hiện chỉ có thư mục hướng dẫn vì chưa triển khai giao diện. Docker Compose, .env và tài liệu dùng chung tại root; CI đổi working-directory sang apps/backend. Lịch sử Git giữ nguyên. Volume Postgres local cũ được giữ bằng biến POSTGRES_VOLUME_NAME, không tạo lại database.

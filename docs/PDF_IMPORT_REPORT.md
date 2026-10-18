@@ -15,7 +15,7 @@ Tổng **11,906 mục theo trang**. Dictionary có 3,367 cặp từ/cách đọc
 
 ## Cách chuyển và giới hạn
 
-- Mimikara: giữ số mục in trên sách; đã đối chiếu 842/880 số mục, còn 38 số mục chưa xác định chắc từ/cách đọc. Các số này nằm trong `data/pdf_imports/mimikara_missing_order_nos.json`; chưa nhập dữ liệu đoán.
+- Mimikara: giữ số mục in trên sách; đã đối chiếu 842/880 số mục, còn 38 số mục chưa xác định chắc từ/cách đọc. Các số này nằm trong `apps/backend/data/pdf_imports/mimikara_missing_order_nos.json`; chưa nhập dữ liệu đoán.
 - Mỗi lesson tương ứng số trang PDF, không suy đoán unit. Một số mục Mimikara chỉ khôi phục được từ chỉ mục cuối sách nên chưa tách đủ ví dụ/collocation; raw block ghi rõ trường hợp này.
 - Shinkanzen GOI, Kanji và Dokkai là **chỉ mục từ tự động trích từ câu tiếng Nhật theo trang**, đối chiếu JMdict. Đây chưa phải bản số hóa chính xác toàn bộ bài học, câu hỏi hoặc danh sách từ của nhà xuất bản.
 - OCR dùng PaddleOCR 3.3.2 / PP-OCRv5 chạy Docker trên máy. Mọi mục OCR được đánh dấu `ocr_review_required=true`. Có thể sai chữ, dấu câu, ghép dòng, tách block hoặc chọn nghĩa không đúng ngữ cảnh.
@@ -24,15 +24,15 @@ Tổng **11,906 mục theo trang**. Dictionary có 3,367 cặp từ/cách đọc
 
 ## Dữ liệu và truy cập
 
-- `data/pdf_imports/access.json`: tài khoản chủ sở hữu local để login API; giữ riêng file này.
-- `data/pdf_imports/*_n3.json`: rows chuẩn hóa với content block, số trang và SHA-256 nguồn.
-- `data/pdf_imports/*_pages.jsonl`: OCR toàn bộ trang, confidence và bounding box để rà soát; giữ cả dòng chưa lập mục từ.
-- `data/pdf_imports/review_required.json` và `mimikara_missing_order_nos.json`: các vấn đề OCR và số mục cần rà soát.
-- `data/pdf_imports/import_receipt.json`: textbook/job ID và SHA-256 từng payload; số dòng commit lũy kế bao gồm lượt upsert, không dùng để tính số entry hiện tại.
-- `data/pdf_imports/live_verification.json`: số entry thực tế và kết quả search sau import.
+- `apps/backend/data/pdf_imports/access.json`: tài khoản chủ sở hữu local để login API; giữ riêng file này.
+- `apps/backend/data/pdf_imports/*_n3.json`: rows chuẩn hóa với content block, số trang và SHA-256 nguồn.
+- `apps/backend/data/pdf_imports/*_pages.jsonl`: OCR toàn bộ trang, confidence và bounding box để rà soát; giữ cả dòng chưa lập mục từ.
+- `apps/backend/data/pdf_imports/review_required.json` và `mimikara_missing_order_nos.json`: các vấn đề OCR và số mục cần rà soát.
+- `apps/backend/data/pdf_imports/import_receipt.json`: textbook/job ID và SHA-256 từng payload; số dòng commit lũy kế bao gồm lượt upsert, không dùng để tính số entry hiện tại.
+- `apps/backend/data/pdf_imports/live_verification.json`: số entry thực tế và kết quả search sau import.
 - API / Swagger đang chạy: http://localhost:8000/docs. Frontend chưa triển khai.
 
-Có thể chạy lại import từ project root: `uv run python -m scripts.import_local_data`. Payload trùng SHA-256 được bỏ qua, payload thay đổi được upsert qua pipeline review/commit; script không xóa entry cũ nếu người dùng tự loại dòng khỏi JSON.
+Có thể chạy lại import từ thư mục `apps/backend`: `uv run python -m scripts.import_local_data`. Payload trùng SHA-256 được bỏ qua, payload thay đổi được upsert qua pipeline review/commit; script không xóa entry cũ nếu người dùng tự loại dòng khỏi JSON.
 
 ## Kiểm chứng
 
