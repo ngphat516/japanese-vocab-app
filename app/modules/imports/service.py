@@ -13,9 +13,14 @@ from app.modules.textbooks.blocks import validate_content
 
 from .adapters.csv_template import COLUMNS, CSVTemplateAdapter
 from .adapters.mimikara import MimikaraAdapter
+from .adapters.normalized_json import NormalizedJSONAdapter
 from .models import ImportJob, ImportRow
 
-ADAPTERS = {"csv_template": CSVTemplateAdapter(), "mimikara": MimikaraAdapter()}
+ADAPTERS = {
+    "csv_template": CSVTemplateAdapter(),
+    "mimikara": MimikaraAdapter(),
+    "normalized_json": NormalizedJSONAdapter(),
+}
 
 
 async def has_mimikara_import(db, textbook_id):
@@ -29,7 +34,10 @@ async def has_mimikara_import(db, textbook_id):
 
 
 def adapters():
-    return [{"name": name, "formats": ["csv", "xlsx"]} for name in ADAPTERS]
+    return [
+        {"name": name, "formats": getattr(adapter, "formats", ["csv", "xlsx"])}
+        for name, adapter in ADAPTERS.items()
+    ]
 
 
 def template():

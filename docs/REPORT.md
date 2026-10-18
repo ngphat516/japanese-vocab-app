@@ -9,11 +9,11 @@ Ngày kiểm chứng: 18/10/2026. Nguồn yêu cầu và các phần P1/P2 đư�
 | Kiểm tra | Kết quả |
 | --- | --- |
 | Python / dependency | Python 3.12.5, uv sync --frozen thành công, có uv.lock |
-| uv run pytest --cov | **68 passed**, 0 failed, 0 errors, 0 skipped; 54,93 giây |
-| Coverage service/NLP | **95.66%**; gate 70% đạt |
+| uv run pytest --cov | **77 passed**, 0 failed, 0 errors, 0 skipped; 55,65 giây |
+| Coverage service/NLP | **95.67%**; gate 70% đạt |
 | Coverage từng service / nlp | scripts/check_coverage.py đạt cho tất cả module P0 |
 | uv run ruff check . | All checks passed |
-| uv run ruff format --check . | 91 files already formatted |
+| uv run ruff format --check . | 94 files already formatted |
 | DB integration | Testcontainers pgvector/pgvector:pg16, Alembic, transaction rollback mỗi test |
 | docker compose up --build -d | Build thành công; DB healthy; API running |
 | Alembic trên DB Compose | 0001_p0 (head) |
@@ -122,8 +122,8 @@ CI đã cấu hình cho GitHub; chưa có remote/push nên chưa có kết quả
 - Mimikara thật: adapter hiện dựa trên format giả định, cần file nguồn hợp lệ để xác nhận
   các khác biệt format/edition. Fixture hoàn toàn tự bịa.
 - Hán Việt: TODO nguồn thật và giấy phép; script chỉ đọc data/hanviet.csv.
-- Dataset JMdict/Kanjidic/JLPT thật chưa tải hoặc seed vào DB Compose; README hướng dẫn
-  vị trí file, format, thứ tự seed, nguồn và yêu cầu attribution/license.
+- Đã seed tập con JMdict thật và import 4 PDF vào textbook private; xem PDF_IMPORT_REPORT.md.
+  Kanjidic/JLPT thật và nguồn Hán Việt chưa bổ sung.
 - Chưa benchmark p95/search với 200.000 từ, import 1.000 dòng dưới 30 giây, hoặc RAM
   512 MB trên hosting free. Các NFR hiệu năng này chưa được chứng minh bằng fixture nhỏ.
 - Backup có script pg_dump; operator cần cấu hình lịch hằng ngày, retention, nơi lưu
@@ -133,3 +133,7 @@ CI đã cấu hình cho GitHub; chưa có remote/push nên chưa có kết quả
 Backend local đang chạy tại http://localhost:8000/docs. Definition of Done về chức năng
 P0, test/coverage/lint, Compose và hướng dẫn chạy đã đạt; các điều kiện vận hành quy mô
 thật kể trên cần được kiểm chứng khi chuẩn bị dataset/deploy.
+
+## Cập nhật import PDF người dùng cung cấp
+
+Đã thêm normalized_json adapter có test riêng và import dữ liệu thật vào DB private. Xem [báo cáo dữ liệu](PDF_IMPORT_REPORT.md) về số lượng, provenance và giới hạn OCR. Adapter Mimikara CSV/XLSX vẫn giữ format giả định; PDF được chuyển trước bằng OCR local.

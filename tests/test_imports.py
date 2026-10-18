@@ -31,6 +31,7 @@ async def test_IMP_01_adapter_registry(authorized):
     assert {x["name"] for x in (await client.get("/api/v1/imports/adapters")).json()} == {
         "mimikara",
         "csv_template",
+        "normalized_json",
     }
 
 

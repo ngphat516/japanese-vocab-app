@@ -103,6 +103,20 @@ không cần worker/Redis. Staging tạo bài trước; commit nguyên tử cho 
 Lỗi commit trả 409 và job failed; không tự retry job failed, upload lại sau khi sửa nguồn.
 Import cùng word vào cùng lesson cập nhật entry (unique word_id, lesson_id).
 
+### Dữ liệu chuyển từ PDF local
+
+Adapter `normalized_json` nhận `{ "source": {...}, "rows": [...] }`, mỗi row có
+kanji, kana, lesson_no, order_no, content (đầy đủ block), raw tùy chọn. Adapter giữ
+metadata nguồn và cột lạ trong staging raw; không tự OCR, đoán cách đọc hoặc dịch nghĩa.
+Giới hạn 5 MB / 5.000 dòng và pipeline review/commit vẫn áp dụng.
+
+Dữ liệu chuyển từ PDF người dùng nằm trong `data/pdf_imports/`, được Git bỏ qua.
+`uv run python -m scripts.import_local_data` nhập JSON tại đây vào các textbook private,
+lưu receipt và thông tin tài khoản local trong cùng thư mục. Không commit access.json.
+Các bài được đặt theo số trang PDF để đối chiếu. Mục từ OCR có ghi chú cần rà ảnh nguồn;
+với Kanji/Dokkai, danh sách từ được trích tự động, không phải danh mục từ do nhà xuất bản
+biên soạn. Hai file GOI trùng SHA-256 chỉ được xử lý một lần.
+
 ## Search và endpoint P0
 
 Prefix `/api/v1`; danh sách chi tiết luôn xem tại `/docs`.
@@ -157,10 +171,12 @@ production để kiểm thử. Schema chỉ thay đổi bằng Alembic migration
 
 ## Kết quả kiểm chứng và dữ liệu còn thiếu
 
-68 test đã xanh trên PostgreSQL 16 + pgvector qua testcontainers; coverage service/NLP
-95,66%, từng service vượt 70%; Ruff check và format sạch. Docker Compose đã build/chạy,
+77 test đã xanh trên PostgreSQL 16 + pgvector qua testcontainers; coverage service/NLP
+95,67%, từng service vượt 70%; Ruff check và format sạch. Docker Compose đã build/chạy,
 Alembic ở head, /health và /docs trả 200. Chi tiết từng mã P0 trong REPORT.
 
-File nguồn Mimikara thật, nguồn Hán Việt có license, dataset JLPT thật và benchmark
-deploy quy mô 200.000 từ vẫn cần bổ sung. Database Compose mới tạo chưa seed dữ liệu;
-chạy các script seed khi đã có nguồn hợp lệ. Không có frontend trong project này.
+Đã chuyển PDF Mimikara và Shinkanzen người dùng cung cấp, đối chiếu từ/cách đọc với
+JMdict và import vào textbook private trong DB local. Xem [báo cáo dữ liệu](docs/PDF_IMPORT_REPORT.md)
+và thư mục `data/pdf_imports/` (được Git bỏ qua). Các mục OCR cần rà soát với bản gốc;
+nguồn Hán Việt có license, dataset JLPT thật và benchmark 200.000 từ vẫn còn thiếu.
+Không có frontend trong project này.
