@@ -164,7 +164,8 @@ Rate limit theo phút được lưu Postgres để chia sẻ giữa process: aut
 upload imports 10/phút/user, search 60/phút/user. Không tin X-Forwarded-For từ client.
 Nếu deploy sau proxy cần cấu hình trusted proxy chính xác. JSON log có request id,
 không ghi token/password; gzip bật cho response từ 1 KB. Search vượt 200 KB trả 422
-yêu cầu giảm size/lọc textbook. Chưa benchmark 200.000 từ hoặc RAM 512 MB.
+yêu cầu giảm size/lọc textbook. Benchmark local trên 200.000 từ đạt p95 75,4–167,9 ms
+cho 7 truy vấn; chưa xác nhận trên hosting free hoặc RAM 512 MB.
 
 Backup: `powershell -File ../../scripts/backup.ps1` tạo pg_dump custom-format trong backups/.
 Operator phải cấu hình Windows Task Scheduler hoặc cron chạy hằng ngày, retention và
@@ -177,8 +178,12 @@ production để kiểm thử. Schema chỉ thay đổi bằng Alembic migration
 95,67%, từng service vượt 70%; Ruff check và format sạch. Docker Compose đã build/chạy,
 Alembic ở head, /health và /docs trả 200. Chi tiết từng mã P0 trong REPORT.
 
+Lần tiếp tục ngày 20/10/2026: 78 test đạt, coverage service/NLP 93,48%, từng service
+vượt 70%; Ruff sạch. Đã tối ưu phân trang search trong SQL và kiểm chứng 140/140
+request benchmark trả 200. Xem [báo cáo giai đoạn 2](../../docs/PHASE2_REPORT.md).
+
 Đã chuyển PDF Mimikara và Shinkanzen người dùng cung cấp, đối chiếu từ/cách đọc với
 JMdict và import vào textbook private trong DB local. Xem [báo cáo dữ liệu](../../docs/PDF_IMPORT_REPORT.md)
 và thư mục `data/pdf_imports/` (được Git bỏ qua). Các mục OCR cần rà soát với bản gốc;
-nguồn Hán Việt có license, dataset JLPT thật và benchmark 200.000 từ vẫn còn thiếu.
+nguồn Hán Việt có license, dataset JLPT thật và benchmark trên hosting vẫn còn thiếu.
 Không có frontend trong project này.

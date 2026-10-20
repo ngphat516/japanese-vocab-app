@@ -202,3 +202,18 @@ async def visible_entries(db, user, word_ids=None, textbook_ids=None, query=None
         }
         for e, l, b in rows
     ]
+
+
+def visible_word_ids(user, textbook_ids=None, query=None):
+    """Composable read query; callers do not need access to textbook models."""
+    stmt = (
+        select(Entry.word_id)
+        .join(Lesson, Lesson.id == Entry.lesson_id)
+        .join(Textbook, Textbook.id == Lesson.textbook_id)
+        .where(visible(user))
+    )
+    if textbook_ids:
+        stmt = stmt.where(Textbook.id.in_(textbook_ids))
+    if query:
+        stmt = stmt.where(dictionary.text_match_condition(Entry.search_text, query))
+    return stmt

@@ -17,14 +17,15 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
     normalized = normalize_query(query)
     if query_type(query) == "kanji":
         query = normalized
-    words = await dictionary.search_candidates(db, query, normalized, query_type(query), jlpt)
-    meaning_entries = await textbooks.visible_entries(
-        db, user, textbook_ids=textbook_ids, query=query
-    )
-    existing = {w.id for w in words}
-    extras = await dictionary.all_by_ids(db, {e["word_id"] for e in meaning_entries} - existing)
-    words.extend(
-        sorted((w for w in extras if not jlpt or w.jlpt_level == jlpt), key=lambda w: w.id)
+    words, total = await dictionary.search_page(
+        db,
+        query,
+        normalized,
+        jlpt,
+        textbooks.visible_word_ids(user, textbook_ids, query),
+        textbooks.visible_word_ids(user, textbook_ids) if textbook_ids else None,
+        page,
+        size,
     )
     entries = await textbooks.visible_entries(
         db, user, word_ids=[w.id for w in words], textbook_ids=textbook_ids
@@ -32,17 +33,15 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
     by_word = {}
     for entry in entries:
         by_word.setdefault(entry["word_id"], []).append(entry)
-    if textbook_ids:
-        words = [w for w in words if w.id in by_word]
-    total = len(words)
     start = (page - 1) * size
+    descriptions = await dictionary.describe_many(db, words)
     result = {
         "items": [
             {
-                "word": await dictionary.describe(db, w),
+                "word": description,
                 "entries": [public_entry(e, start + index < 10) for e in by_word.get(w.id, [])],
             }
-            for index, w in enumerate(words[start : start + size])
+            for index, (w, description) in enumerate(zip(words, descriptions, strict=True))
         ],
         "page": page,
         "size": size,
