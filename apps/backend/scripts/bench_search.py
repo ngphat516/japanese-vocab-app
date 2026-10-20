@@ -22,7 +22,7 @@ from testcontainers.community.postgres import PostgresContainer
 QUERIES = ["きんちょう", "kinchou", "緊張", "căng thẳng", "school", "い", "a"]
 
 
-async def measure(url, output, queries, iterations):
+async def measure(url, output, queries, iterations, jmdict=None, concurrency=1):
     from httpx import ASGITransport, AsyncClient
     from sqlalchemy import event, text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -31,7 +31,7 @@ async def measure(url, output, queries, iterations):
     from app.db.session import get_db
     from app.main import app
 
-    engine = create_async_engine(url)
+    engine = create_async_engine(url, pool_size=10, max_overflow=0)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as db:
         await db.execute(
@@ -40,47 +40,53 @@ async def measure(url, output, queries, iterations):
             VALUES (1,'bench@example.com','unused','Benchmark','admin');
         """)
         )
-        await db.execute(
-            text("""
-            INSERT INTO words(id,kanji,kana,kana_norm,romaji,hanviet,pos)
-            SELECT n, '試験' || n, 'い' || n, 'い' || n, 'i' || n, '', '{}'
-            FROM generate_series(1,200000) n
-        """)
-        )
-        await db.execute(
-            text("""
-            UPDATE words SET kanji='緊張',kana='きんちょう',kana_norm='きんちょう',
-            romaji='kinchou' WHERE id=1
-        """)
-        )
-        await db.execute(
-            text("""
-            INSERT INTO word_senses(word_id,lang,gloss,"order")
-            SELECT n, 'en', CASE WHEN n=1 THEN 'tension' WHEN n%97=0 THEN 'school'
-                ELSE 'invented meaning ' || n END, 0 FROM generate_series(1,200000) n
-            UNION ALL
-            SELECT n, 'vi', CASE WHEN n=1 THEN 'căng thẳng'
-                ELSE 'invented alternative ' || n END, 1 FROM generate_series(1,200000) n
-        """)
-        )
-        await db.execute(
-            text("""
-            INSERT INTO textbooks(id,name,visibility,owner_id) VALUES (1,'Benchmark','private',1)
-        """)
-        )
-        await db.execute(
-            text("""
-            INSERT INTO lessons(id,textbook_id,number,title) VALUES(1,1,1,'Benchmark lesson')
-        """)
-        )
-        await db.execute(
-            text("""
-            INSERT INTO textbook_entries(word_id,lesson_id,order_no,content,search_text)
-            SELECT n,1,n,'[{"type":"meaning","en":"invented benchmark"}]'::jsonb,
-            CASE WHEN n=1 THEN 'căng thẳng' ELSE 'invented benchmark ' || n END
-            FROM generate_series(1,12000) n
-        """)
-        )
+        if jmdict:
+            from scripts.bench_seed import seed_full_jmdict
+
+            metadata = await seed_full_jmdict(db, jmdict)
+        else:
+            await db.execute(
+                text("""
+                INSERT INTO words(id,kanji,kana,kana_norm,romaji,hanviet,pos)
+                SELECT n, '試験' || n, 'い' || n, 'い' || n, 'i' || n, '', '{}'
+                FROM generate_series(1,200000) n
+            """)
+            )
+            await db.execute(
+                text("""
+                UPDATE words SET kanji='緊張',kana='きんちょう',kana_norm='きんちょう',
+                romaji='kinchou' WHERE id=1
+            """)
+            )
+            await db.execute(
+                text("""
+                INSERT INTO word_senses(word_id,lang,gloss,"order")
+                SELECT n, 'en', CASE WHEN n=1 THEN 'tension' WHEN n%97=0 THEN 'school'
+                    ELSE 'invented meaning ' || n END, 0 FROM generate_series(1,200000) n
+                UNION ALL
+                SELECT n, 'vi', CASE WHEN n=1 THEN 'căng thẳng'
+                    ELSE 'invented alternative ' || n END, 1 FROM generate_series(1,200000) n
+            """)
+            )
+            await db.execute(
+                text("""
+                INSERT INTO textbooks(id,name,visibility,owner_id) VALUES (1,'Benchmark','private',1)
+            """)
+            )
+            await db.execute(
+                text("""
+                INSERT INTO lessons(id,textbook_id,number,title) VALUES(1,1,1,'Benchmark lesson')
+            """)
+            )
+            await db.execute(
+                text("""
+                INSERT INTO textbook_entries(word_id,lesson_id,order_no,content,search_text)
+                SELECT n,1,n,'[{"type":"meaning","en":"invented benchmark"}]'::jsonb,
+                CASE WHEN n=1 THEN 'căng thẳng' ELSE 'invented benchmark ' || n END
+                FROM generate_series(1,12000) n
+            """)
+            )
+            metadata = {"dataset": "synthetic", "words": 200000, "senses": 400000, "entries": 12000}
         await db.execute(text("ANALYZE"))
 
     async def db_override():
@@ -96,11 +102,11 @@ async def measure(url, output, queries, iterations):
 
     @event.listens_for(engine.sync_engine, "after_cursor_execute")
     def after(conn, cursor, statement, parameters, context, executemany):
-        if statement.lstrip().upper().startswith("SELECT"):
+        if statement.lstrip().upper().startswith(("SELECT", "WITH")):
             captured.append((time.perf_counter() - context.bench_start, statement, parameters))
 
     app.dependency_overrides[get_db] = db_override
-    report = {}
+    report = {"metadata": {**metadata, "concurrency": concurrency, "iterations": iterations}}
     try:
         async with AsyncClient(
             transport=ASGITransport(app=app, raise_app_exceptions=False),
@@ -110,23 +116,46 @@ async def measure(url, output, queries, iterations):
             for query in queries:
                 durations = []
                 statuses = []
-                for _ in range(iterations):
+
+                async def request(query=query):
                     start = time.perf_counter()
                     response = await http.get("/api/v1/search", params={"q": query, "size": 20})
-                    statuses.append(response.status_code)
-                    durations.append((time.perf_counter() - start) * 1000)
+                    return (
+                        response.status_code,
+                        (time.perf_counter() - start) * 1000,
+                        response.json(),
+                    )
+
+                bodies = []
+                for offset in range(0, iterations, concurrency):
+                    results = await asyncio.gather(
+                        *(request() for _ in range(min(concurrency, iterations - offset)))
+                    )
+                    for status, duration, body in results:
+                        statuses.append(status)
+                        durations.append(duration)
+                        bodies.append(body)
                 report[query] = {
                     "median_ms": statistics.median(durations),
                     "p95_ms": sorted(durations)[math.ceil(0.95 * len(durations)) - 1],
                     "max_ms": max(durations),
-                    "total": response.json().get("total"),
+                    "total": bodies[-1].get("total"),
+                    "total_capped": bodies[-1].get("total_capped", False),
+                    "errors": [b for b in bodies if "error" in b],
                     "statuses": statuses,
                     "samples_ms": durations,
                 }
                 Path(output).write_text(
                     json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
-                print(query.encode("unicode_escape").decode(), report[query], flush=True)
+                print(
+                    query.encode("unicode_escape").decode(),
+                    "p95_ms=",
+                    round(report[query]["p95_ms"], 2),
+                    "statuses=",
+                    sorted(set(statuses)),
+                    flush=True,
+                )
         _, statement, parameters = max(captured, key=lambda item: item[0])
         report["slowest_sql"] = statement
         report["sql_timings"] = [
@@ -134,15 +163,14 @@ async def measure(url, output, queries, iterations):
             for duration, sql, _ in sorted(captured, key=lambda item: item[0], reverse=True)[:5]
         ]
         async with engine.connect() as db:
-            await db.exec_driver_sql("SET statement_timeout = '60s'")
-            await db.exec_driver_sql("SET work_mem = '16MB'")
-            await db.exec_driver_sql("SET pg_trgm.similarity_threshold = 0.3")
-            await db.exec_driver_sql("SET plan_cache_mode = force_custom_plan")
+            await db.begin()
+            await db.exec_driver_sql("SET LOCAL statement_timeout = '60s'")
+            await db.exec_driver_sql("SET LOCAL work_mem = '16MB'")
             plan = await db.exec_driver_sql("EXPLAIN (ANALYZE, BUFFERS) " + statement, parameters)
             report["slowest_sql"] = statement
             report["explain"] = list(plan.scalars())
         Path(output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(json.dumps(report, ensure_ascii=True, indent=2))
+        print("Saved", output, flush=True)
     finally:
         app.dependency_overrides.clear()
         await engine.dispose()
@@ -156,7 +184,11 @@ def main():
     parser.add_argument(
         "--baseline", action="store_true", help="Use committed P0 search orchestration"
     )
+    parser.add_argument("--jmdict", type=Path, help="Full jmdict-simplified English JSON")
+    parser.add_argument("--concurrency", type=int, choices=range(1, 11), default=1)
     args = parser.parse_args()
+    if args.iterations < 1:
+        parser.error("iterations must be positive")
     os.environ["RATE_LIMIT_ENABLED"] = "false"
     os.environ.setdefault("JWT_SECRET", "benchmark-only-secret-at-least-32-characters")
     logging.disable(logging.INFO)
@@ -184,7 +216,11 @@ def main():
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
                 service.search = module.search
-            asyncio.run(measure(url, args.output, args.queries, args.iterations))
+            asyncio.run(
+                measure(
+                    url, args.output, args.queries, args.iterations, args.jmdict, args.concurrency
+                )
+            )
 
 
 if __name__ == "__main__":

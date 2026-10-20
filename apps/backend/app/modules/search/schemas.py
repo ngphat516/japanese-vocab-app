@@ -38,6 +38,7 @@ class SearchResult(BaseModel):
     page: int
     size: int
     total: int
+    total_capped: bool = False
 
 
 class WordDetail(SearchItem):

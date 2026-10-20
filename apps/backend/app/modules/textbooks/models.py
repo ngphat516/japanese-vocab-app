@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Index, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,3 +45,10 @@ class Entry(Timestamp, Base):
     order_no: Mapped[int]
     content: Mapped[list] = mapped_column(JSONB)
     search_text: Mapped[str]
+
+
+Index(
+    "ix_entries_search_prefix",
+    func.lower(Entry.search_text).label("search_lower"),
+    postgresql_ops={"search_lower": "text_pattern_ops"},
+)

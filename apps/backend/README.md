@@ -165,7 +165,14 @@ upload imports 10/phút/user, search 60/phút/user. Không tin X-Forwarded-For t
 Nếu deploy sau proxy cần cấu hình trusted proxy chính xác. JSON log có request id,
 không ghi token/password; gzip bật cho response từ 1 KB. Search vượt 200 KB trả 422
 yêu cầu giảm size/lọc textbook. Benchmark local trên 200.000 từ đạt p95 75,4–167,9 ms
-cho 7 truy vấn; chưa xác nhận trên hosting free hoặc RAM 512 MB.
+cho 7 truy vấn tại Milestone 0. Sau rà soát trước Milestone 1, có thêm benchmark
+JMdict đầy đủ và 10 request đồng thời; tải đồng thời còn ca vượt 300 ms.
+Xem PHASE2_REPORT để có số đo mới nhất; chưa xác nhận trên hosting free hoặc RAM 512 MB.
+
+Search giới hạn total tối đa 1.000; total_capped=true nghĩa là còn hơn 1.000 kết quả,
+vẫn có thể phân trang tiếp. Latin 1–2 ký tự chỉ tìm đầu trường nghĩa (không phân biệt
+hoa thường), đồng thời vẫn thử chuyển romaji sang kana. Migration 0002 thêm index
+prefix nghĩa; luôn chạy Alembic trước khi dùng phiên bản này.
 
 Backup: `powershell -File ../../scripts/backup.ps1` tạo pg_dump custom-format trong backups/.
 Operator phải cấu hình Windows Task Scheduler hoặc cron chạy hằng ngày, retention và
@@ -181,6 +188,11 @@ Alembic ở head, /health và /docs trả 200. Chi tiết từng mã P0 trong RE
 Lần tiếp tục ngày 20/10/2026: 78 test đạt, coverage service/NLP 93,48%, từng service
 vượt 70%; Ruff sạch. Đã tối ưu phân trang search trong SQL và kiểm chứng 140/140
 request benchmark trả 200. Xem [báo cáo giai đoạn 2](../../docs/PHASE2_REPORT.md).
+
+Rà soát trước Milestone 1: 84 test đạt, coverage 95,73% (dictionary 97,7%), Ruff sạch.
+1.680/1.680 request benchmark thành công trên synthetic/JMdict, tuần tự/10 đồng thời;
+chưa đạt p95 <300 ms cho toàn bộ truy vấn dưới tải đồng thời. IMP-11 import Anki
+hoãn khỏi Phase 2.
 
 Đã chuyển PDF Mimikara và Shinkanzen người dùng cung cấp, đối chiếu từ/cách đọc với
 JMdict và import vào textbook private trong DB local. Xem [báo cáo dữ liệu](../../docs/PDF_IMPORT_REPORT.md)

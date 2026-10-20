@@ -2,9 +2,10 @@ import asyncio
 import csv
 import io
 import json
+import unicodedata
 from pathlib import Path
 
-from sqlalchemy import func, literal, or_, select, text, union_all
+from sqlalchemy import and_, func, literal, or_, select, text, union_all
 from sqlalchemy.dialects.postgresql import insert
 
 from app.core.exceptions import AppError
@@ -137,14 +138,40 @@ def substring_condition(column, query):
     escaped = query.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
     pattern = "%" + escaped + "%"
     if query.lower() == query.upper():
+        if len(query) < 3:
+            # A one/two-character substring has no selective internal trigram.
+            # Literal strpos avoids a GIN walk that rechecks the entire index.
+            return func.strpos(column, query) > 0
         return column.like(pattern, escape="\\")
     if len(query) == 1 and query.isascii() and query.isalpha():
         return or_(column.like(pattern.lower()), column.like(pattern.upper()))
     return column.ilike(pattern, escape="\\")
 
 
+def short_latin(query):
+    return 0 < len(query) < 3 and all("LATIN" in unicodedata.name(c, "") for c in query)
+
+
+def prefix_condition(column, query):
+    # Explicit pattern-order bounds remain indexable even in a generic prepared
+    # plan, where PostgreSQL cannot derive bounds from a parameterized LIKE.
+    trimmed = query.rstrip(chr(0x10FFFF))
+    clauses = [column.bool_op("~>=~")(query), column.startswith(query, autoescape=True)]
+    if trimmed:
+        upper = trimmed[:-1] + chr(ord(trimmed[-1]) + 1)
+        clauses.append(column.bool_op("~<~")(upper))
+    return and_(*clauses)
+
+
+def meaning_condition(column, query):
+    # Short Latin searches match the beginning of the gloss, case-insensitively.
+    if short_latin(query):
+        return prefix_condition(func.lower(column), query.lower())
+    return substring_condition(column, query)
+
+
 def text_match_condition(column, query):
-    substring = substring_condition(column, query)
+    substring = meaning_condition(column, query)
     if len(query) <= 2 and query.isalnum():
         return substring
     return or_(substring, column.bool_op("%")(query))
@@ -153,14 +180,14 @@ def text_match_condition(column, query):
 def search_sources(query, normalized, jlpt, entry_matches, visible_ids):
     exact = or_(Word.kanji == query, Word.kana_norm == normalized)
     prefix = or_(
-        Word.kanji.startswith(query, autoescape=True),
-        Word.kana_norm.startswith(normalized, autoescape=True),
+        prefix_condition(Word.kanji, query),
+        prefix_condition(Word.kana_norm, normalized),
     )
     sources = [
         (select(Word.id.label("word_id")).where(exact), 0),
         (select(Word.id.label("word_id")).where(prefix), 1),
         (
-            select(WordSense.word_id).where(substring_condition(WordSense.gloss, query)),
+            select(WordSense.word_id).where(meaning_condition(WordSense.gloss, query)),
             2,
         ),
     ]
@@ -181,35 +208,39 @@ def search_sources(query, normalized, jlpt, entry_matches, visible_ids):
 
 
 async def search_page(db, query, normalized, jlpt, entry_matches, visible_ids, page, size):
-    await db.execute(
-        text("""
-        SELECT set_config('pg_trgm.similarity_threshold', '0.3', true),
-               set_config('work_mem', '16MB', true),
-               set_config('plan_cache_mode', 'force_custom_plan', true)
-    """)
-    )
+    await db.execute(text("SET LOCAL work_mem = '16MB'"))
     sources = search_sources(query, normalized, jlpt, entry_matches, visible_ids)
-    count_query = (
-        select(func.count())
-        .select_from(Word)
-        .where(
-            or_(
-                Word.kanji.startswith(query, autoescape=True),
-                Word.kana_norm.startswith(normalized, autoescape=True),
-                *(Word.id.in_(stmt) for stmt, _ in sources[2:]),
-            )
-        )
-    )
-    if jlpt:
-        count_query = count_query.where(Word.jlpt_level == jlpt)
-    if visible_ids is not None:
-        count_query = count_query.where(Word.id.in_(visible_ids))
-    total = await db.scalar(count_query)
+    # Filter text sources before DISTINCT/ORDER/LIMIT. Otherwise a generic plan
+    # can walk the entire word_id index looking for a handful of text matches.
+    prepared_sources = []
+    for index, (stmt, rank) in enumerate(sources):
+        if rank >= 2:
+            filtered = stmt.cte(f"search_source_{index}").prefix_with("MATERIALIZED")
+            stmt = select(filtered.c.word_id)
+        prepared_sources.append((stmt, rank))
+    sources = prepared_sources
+    # At most 1001 distinct IDs per source and 1001 in the final union. The extra
+    # ID distinguishes exactly 1000 matches from a capped lower bound.
+    count_sources = [
+        select(source.c.word_id)
+        for stmt, rank in sources
+        for source in [(stmt.distinct() if rank >= 2 else stmt).limit(1001).subquery()]
+    ]
+    count_ids = union_all(*count_sources).subquery()
+    count_sample = select(count_ids.c.word_id).distinct().limit(1001).subquery()
+    observed = await db.scalar(select(func.count()).select_from(count_sample))
     # A global top K cannot need more than K distinct IDs from any ranked source.
     # Apply the same filters before these bounds so sparse filtered pages stay full.
     bounded = []
     for stmt, rank in sources:
-        source = stmt.distinct().order_by(stmt.selected_columns[0]).limit(page * size).subquery()
+        column = stmt.selected_columns[0]
+        if rank < 2:
+            # Word IDs are already unique. Sort the filtered matches instead of
+            # walking the PK index in ID order and discarding nonmatching rows.
+            stmt = stmt.order_by(column + 0)
+        else:
+            stmt = stmt.distinct().order_by(column)
+        source = stmt.limit(page * size).subquery()
         bounded.append(select(source.c.word_id, literal(rank).label("rank")))
     candidates = union_all(*bounded).subquery()
     ranked = (
@@ -231,7 +262,7 @@ async def search_page(db, query, normalized, jlpt, entry_matches, visible_ids, p
             )
         ).all()
     )
-    return words, total
+    return words, min(observed, 1000), observed > 1000
 
 
 async def seed_jmdict(db, path):

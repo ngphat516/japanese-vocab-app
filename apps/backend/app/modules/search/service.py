@@ -17,7 +17,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
     normalized = normalize_query(query)
     if query_type(query) == "kanji":
         query = normalized
-    words, total = await dictionary.search_page(
+    words, total, total_capped = await dictionary.search_page(
         db,
         query,
         normalized,
@@ -46,6 +46,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
         "page": page,
         "size": size,
         "total": total,
+        "total_capped": total_capped,
     }
     if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 195000:
         raise AppError(
