@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from sqlalchemy import column, func, or_, select
@@ -9,6 +10,7 @@ from app.modules.auth.service import require_admin
 from app.modules.dictionary import service as dictionary
 from app.nlp.furigana import search_text
 from app.nlp.normalize import is_vietnamese
+from app.nlp.tokenizer import entry_lemmas
 
 from .blocks import validate_content
 from .models import Entry, Lesson, Textbook
@@ -166,6 +168,7 @@ async def save_entry(db, user, lesson_id, word_id, order_no, content):
         entry = Entry(lesson_id=lesson_id, word_id=word_id)
         db.add(entry)
     entry.order_no, entry.content, entry.search_text = order_no, blocks, search_text(blocks)
+    entry.lemmas = await asyncio.to_thread(entry_lemmas, blocks)
     await db.flush()
     return entry
 

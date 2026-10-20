@@ -17,6 +17,7 @@ Ngày bắt đầu: 20/10/2026. Phạm vi: backend P1; không triển khai front
 Đã tiếp tục và kiểm chứng xong bước tối ưu search (milestone 0) ngày 20/10/2026.
 Milestone 0 đã commit tại `51e0278` (`perf(search): paginate in SQL, trigram operators`).
 Chưa hoàn thành toàn bộ P1; các tính năng P1 còn lại chưa được triển khai trong bước này.
+Milestone 1 NLP đã hoàn tất; kết quả và tài nguyên ở cuối báo cáo. Dừng trước Milestone 2.
 
 ## Thay đổi search
 
@@ -225,3 +226,98 @@ uv run python -m scripts.bench_search --jmdict data/bench/jmdict-eng-3.6.2.json 
   JSON/log: `verification/m1-vi-j1.*`, `verification/m1-vi-j10.*`; database tạm đã dọn.
 - **85 test đạt**, coverage 95,81%; từng service/NLP ≥70%, Ruff/format xanh.
   Log: `verification/m1-step0-tests-final.log`. Không tối ưu thêm tải đồng thời.
+
+## Milestone 1 — NLP, lemma và furigana
+
+### Triển khai
+
+- Bước 0 commit `dcee0b9` (`perf(search): skip English fuzzy for Vietnamese queries`).
+- SudachiPy **0.7.0**, core **20261015**, psutil dev **7.2.2**, khóa trong uv.lock;
+  uv sync --frozen đạt. SplitMode C; một instance nạp lười/process, khóa thao tác
+  tokenization, Token bất biến. Lemma giữ する; trợ từ/trợ động từ/ký hiệu bị lọc.
+- Furigana tách okurigana khi căn duy nhất: 食[た]べる, 取[と]り扱[あつか]い,
+  緊張[きんちょう]して, 人々[ひとびと]. Fallback cả token nếu không căn được;
+  giữ nguyên furigana có sẵn và vùng {{...}}; idempotent. Chưa tự áp furigana vào import/entry.
+- Migration **0003_entry_lemmas** đã áp lên DB local sau backup. Entry.lemmas là
+  text[] NOT NULL DEFAULT '{}' + GIN; save_entry tính từ các trường Nhật trong thread.
+  Search chưa dùng lemma; search_text/summary không nối thêm lemma. DECISIONS **34–39**.
+
+### Backup và backfill local
+
+| Thời điểm | Backup | Kích thước |
+| --- | --- | ---: |
+| Trước 0002 | `backups/milestone1/vocab-20261020-161758.dump` | 4.050.202 byte |
+| Trước 0003/backfill | `backups/milestone1/vocab-20261020-162918.dump` | 4.050.900 byte |
+
+Đây là đường dẫn tương đối root repo. Đã đọc được catalog pg_restore của backup mới
+(custom format, 102 TOC entries). Chỉ kiểm tra downgrade trên DB tạm.
+
+- Backfill lô500: **11.906 entry** được quét; dry-run dự báo **11.535** thay đổi.
+- Lần ghi thứ nhất: **11.535**; lần thứ hai: **0** thay đổi.
+- Hash content + search_text của toàn bộ entry trước/sau giống nhau:
+  `5ba73083acd62e73b4cb8a6d1f6d0ae0aeb36c789fa1b008589b63795dae05ad`.
+  Không thay nội dung OCR hoặc summary bằng kết quả NLP.
+- Bằng chứng: `verification/m1-backfill-dry.log`, `m1-backfill-first.log`,
+  `m1-backfill-second.log`, `m1-content-before.json`, `m1-content-after.json`.
+
+### Test và kiểm tra chất lượng
+
+| Môi trường | pytest | Coverage service/NLP |
+| --- | --- | ---: |
+| Windows, Python 3.12.5 | **105/105 PASS**, 45,64 giây | **96,34%** |
+| Linux Docker, Python 3.12.15 | **105/105 PASS**, 52,69 giây | **96,34%** |
+
+Toàn bộ 84 test trước milestone vẫn đạt. Có test lemma đã chia, lọc POS,
+dedup/thread safety/lazy initialization, okurigana/fallback/々/idempotence/bảo vệ
+markup, save_entry/summary, backfill dry-run + chạy hai lần, migration
+upgrade → downgrade → upgrade và GIN/default. Test kiến trúc nlp độc lập vẫn xanh.
+
+Coverage từng service: auth 95,2%, dictionary 97,7%, imports 97,2%, search 96,4%,
+textbooks 91,7%; NLP **99,3%**, tokenizer và furigana **100%**. Check coverage ≥70%
+đạt; không hạ ngưỡng hoặc bỏ test. Ruff check/format theo phạm vi CI xanh, 103 file;
+git diff --check đạt. Linux integration test dùng quyền truy cập Docker socket cho
+Testcontainers; image API vẫn chạy user api. Chưa tạo GitHub Actions run mới vì chưa push.
+
+Log: `verification/m1-tests.log`, `m1-tests.xml`, `m1-linux-full-tests.log`,
+`m1-linux-tests.log`; build Linux: `m1-linux-final-build.log`.
+
+### Đo tài nguyên và 1.000 câu thật
+
+Nguồn: giáo trình được tìm theo tên **Mimi Kara Oboeru N3 - Goi (PDF OCR)**,
+textbook_id=1 sau truy vấn, không hardcode. Có **1.157 câu ví dụ**; chọn **1.000 câu
+khác nhau** bằng seed20261020. Bỏ markup trước khi đo để thực sự sinh furigana mới.
+Nạp dictionary trước các phép đo 1.000 câu, đo thời gian nạp riêng. Cùng workload
+trên Windows và Linux, SHA-256:
+`69ac6dabeb095b627b20eae10881a82ef95b700bcd400f7b44be3650778806be`.
+
+| Phép đo | Windows | Linux container |
+| --- | ---: | ---: |
+| Nạp dictionary | 0,06390 s | 0,02688 s |
+| Lemma 1.000 câu | 0,07197 s | 0,08051 s |
+| Furigana 1.000 câu | 0,11055 s | 0,11104 s |
+| Tổng NLP 1.000 câu | **0,18252 s** | **0,19155 s** |
+| RSS API | **174.804.992 byte (166,71 MiB)** | **183.033.856 byte (174,55 MiB)** |
+
+RSS đo PID uvicorn thực, một worker, đã nạp core và xử lý một request search 緊張
+HTTP 200 qua loopback. Cả hai snapshot dưới 512 MB (NFR-03 local); không phải phép đo
+peak RAM hoặc bằng chứng trên hosting deploy. Probe tạm đã đóng sau đo.
+
+Ước lượng NFR-02: nếu một dòng import có một câu tương tự, phần lemma + furigana
+của 1.000 dòng khoảng **0,192 s**, còn nhiều ngân sách trong mốc30 s. **Chưa xác nhận
+toàn bộ import/matching 1.000 dòng <30 s**; phép đo này chỉ cô lập thành phần NLP.
+Không chạy import hay sửa dữ liệu nguồn để tạo mẫu đo.
+
+JSON: `verification/m1-resources.json` (Windows),
+`verification/linux/m1-resources.json` (Linux); log `m1-measure.log`,
+`m1-linux-measure.log`. Script: `uv run python -m scripts.measure_m1`.
+
+### Mẫu đối chiếu MANUAL và điểm dừng
+
+**MANUAL**: `apps/backend/verification/m1_nlp_sample.md`, 30 câu thật, seed20261020.
+Mỗi câu có entry/order_no/textbook, câu gốc, add_furigana(original), bản sinh lại
+sau bỏ markup, và lemma. Nguồn vẫn có lỗi OCR (ví dụ 協カ), nên kết quả đọc tự động
+cần người dùng đối chiếu bằng mắt; không sửa bản gốc hoặc âm đọc theo mẫu.
+
+Milestone 1 hoàn tất, commit `feat(nlp): sudachi tokenizer, furigana, entry lemmas`.
+Dừng tại đây. **Chưa làm Milestone 2** (search lemma/appears_in_examples), chưa tự áp
+furigana ở Milestone 4, IMP-11 vẫn hoãn, NB-06 xuất Anki giữ ở Milestone 3.

@@ -137,6 +137,17 @@ Canonical dictionary words dùng chung; user khác vẫn có thể thấy từ c
 nội dung private. Truy vấn nghĩa không được tìm xuyên vào nội dung private của người khác.
 P0 chưa có lemmatization, furigana tự sinh, semantic search, Sổ từ hoặc SRS.
 
+Phase 2 Milestone 1 đã thêm `nlp.tokenizer.tokenize/lemmas` (Sudachi core, SplitMode C)
+và `nlp.furigana.add_furigana`. Tokenizer nạp lười, có khóa cho các lời gọi từ thread.
+`save_entry` lưu `lemmas` riêng (migration 0003), giữ nguyên search_text/summary.
+Search chưa dùng lemma; furigana chưa tự áp vào import/entry.
+
+Sau backup, chạy `uv run alembic upgrade head`, rồi
+`uv run python -m scripts.backfill_lemmas --dry-run` để xem số entry sẽ đổi và
+`uv run python -m scripts.backfill_lemmas` để ghi lemma theo lô500. Chạy lại không
+đổi kết quả. `uv run python -m scripts.measure_m1` xuất 30 mẫu MANUAL, đo NLP cho 1.000 câu
+và RSS uvicorn; script đọc ví dụ từ DB local, không sửa nội dung nguồn.
+
 ## Test và chất lượng
 
 Docker engine phải truy cập được từ terminal chạy test. Bộ integration tự tạo container
@@ -193,6 +204,9 @@ Rà soát trước Milestone 1: 84 test đạt, coverage 95,73% (dictionary 97,7
 1.680/1.680 request benchmark thành công trên synthetic/JMdict, tuần tự/10 đồng thời;
 chưa đạt p95 <300 ms cho toàn bộ truy vấn dưới tải đồng thời. IMP-11 import Anki
 hoãn khỏi Phase 2.
+
+Milestone 1: 105 test đạt trên Windows và Linux, coverage 96,34% (NLP 99,3%).
+Chi tiết backup, backfill và tài nguyên trong [PHASE2_REPORT](../../docs/PHASE2_REPORT.md).
 
 Đã chuyển PDF Mimikara và Shinkanzen người dùng cung cấp, đối chiếu từ/cách đọc với
 JMdict và import vào textbook private trong DB local. Xem [báo cáo dữ liệu](../../docs/PDF_IMPORT_REPORT.md)

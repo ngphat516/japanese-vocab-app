@@ -1,5 +1,5 @@
-from sqlalchemy import ForeignKey, Index, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import ForeignKey, Index, Text, UniqueConstraint, func, text
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Timestamp
@@ -45,6 +45,9 @@ class Entry(Timestamp, Base):
     order_no: Mapped[int]
     content: Mapped[list] = mapped_column(JSONB)
     search_text: Mapped[str]
+    lemmas: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), server_default=text("'{}'"), default=list
+    )
 
 
 Index(
@@ -52,3 +55,5 @@ Index(
     func.lower(Entry.search_text).label("search_lower"),
     postgresql_ops={"search_lower": "text_pattern_ops"},
 )
+
+Index("ix_entries_lemmas", Entry.lemmas, postgresql_using="gin")
