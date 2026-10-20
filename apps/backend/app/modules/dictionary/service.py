@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.core.exceptions import AppError
 from app.nlp.kanji import breakdown
-from app.nlp.normalize import kana_normalize, to_romaji
+from app.nlp.normalize import is_vietnamese, kana_normalize, to_romaji
 
 from .models import Kanji, Word, WordSense
 
@@ -196,6 +196,20 @@ def search_sources(query, normalized, jlpt, entry_matches, visible_ids):
     if len(query) > 2 or not query.isalnum():
         sources.append((select(WordSense.word_id).where(WordSense.gloss.bool_op("%")(query)), 2))
     sources.append((entry_matches, 3))
+    if is_vietnamese(query):
+        vie = (
+            select(WordSense.word_id, WordSense.gloss)
+            .where(WordSense.lang == "vie")
+            .cte("vietnamese_senses")
+            .prefix_with("MATERIALIZED")
+        )
+        sources = [
+            (
+                select(vie.c.word_id).where(text_match_condition(vie.c.gloss, query)),
+                2,
+            ),
+            (entry_matches, 3),
+        ]
     filtered = []
     for stmt, rank in sources:
         column = stmt.selected_columns[0]

@@ -71,9 +71,8 @@ trên hosting free, tải đồng thời hoặc dữ liệu JMdict thực; ASGIT
 Bước tối ưu search đã kiểm chứng; phần tiếp theo là các tính năng backend P1 trong
 requirements.md (DICT-08/09, TB-06/07/08, SRCH-08/09/10, IMP-10/12,
 NB-01…06), kèm kiểm chứng riêng. **IMP-11 import Anki được hoãn khỏi Phase 2**;
-NB-06 xuất Anki vẫn giữ. Frontend/P2 chưa triển khai. Người dùng sẽ gửi định nghĩa
-Milestone 1 sau khi hoàn tất các mục 1–7 trước milestone; không suy diễn phạm vi
-Milestone 1 từ prompt kiểm tra Phase 1.
+NB-06 xuất Anki vẫn giữ (Milestone 3). Frontend/P2 chưa triển khai. Milestone 1
+được thực hiện theo prompt NLP mới; không mở rộng sang Milestone 2.
 
 Chạy lại từ `apps/backend` khi Docker Desktop sẵn sàng:
 
@@ -208,3 +207,21 @@ uv run python -m scripts.bench_search --jmdict data/bench/jmdict-eng-3.6.2.json 
 uv run python -m scripts.bench_search --concurrency 10 --iterations 100 --output verification/bench-s10.json
 uv run python -m scripts.bench_search --jmdict data/bench/jmdict-eng-3.6.2.json --concurrency 10 --iterations 100 --output verification/bench-j10.json
 ```
+
+## Milestone 1 — Bước 0
+
+- Backup trước migration: `backups/milestone1/vocab-20261020-161758.dump`,
+  4.050.202 byte, tạo bằng scripts/backup.ps1 trên volume local hiện có.
+- Đã chạy alembic upgrade head lên DB thật: 0001_p0 → 0002_meaning_prefix.
+  Health 200, database ok; search 緊張 trả 200, 11 kết quả, 緊張 đứng đầu.
+  Bằng chứng: `verification/m1-local-smoke.json`, `m1-local-migration-0002.log`.
+- Tiếng Việt có dấu chỉ tìm meaning.vi trong entry có quyền xem và gloss lang=vie.
+  CTE lọc ngôn ngữ trước khi tính fuzzy, không fuzzy English; test loại cả gloss eng,
+  example.vi và meaning.en dù chứa nguyên chuỗi tiếng Việt. Không đoán tiếng Việt không dấu.
+- NFR-01 đã đổi theo yêu cầu và ghi DECISIONS 33: <300 ms tuần tự, <600 ms ở 10
+  đồng thời, phải đo uvicorn/HTTP thật trên môi trường deploy. ASGI chỉ so sánh trước/sau.
+- Benchmark riêng căng thẳng trên cùng JMdict đầy đủ: p95 **59,13 ms c=1** (20/20 HTTP 200),
+  **292,83 ms c=10** (100/100 HTTP 200), total=0. Trước lần lượt 299,58/475,08 ms.
+  JSON/log: `verification/m1-vi-j1.*`, `verification/m1-vi-j10.*`; database tạm đã dọn.
+- **85 test đạt**, coverage 95,81%; từng service/NLP ≥70%, Ruff/format xanh.
+  Log: `verification/m1-step0-tests-final.log`. Không tối ưu thêm tải đồng thời.

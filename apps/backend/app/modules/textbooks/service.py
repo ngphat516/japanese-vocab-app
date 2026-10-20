@@ -1,12 +1,14 @@
 import json
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import column, func, or_, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import AppError
 from app.modules.auth.service import require_admin
 from app.modules.dictionary import service as dictionary
 from app.nlp.furigana import search_text
+from app.nlp.normalize import is_vietnamese
 
 from .blocks import validate_content
 from .models import Entry, Lesson, Textbook
@@ -215,5 +217,17 @@ def visible_word_ids(user, textbook_ids=None, query=None):
     if textbook_ids:
         stmt = stmt.where(Textbook.id.in_(textbook_ids))
     if query:
-        stmt = stmt.where(dictionary.text_match_condition(Entry.search_text, query))
+        if is_vietnamese(query):
+            blocks = func.jsonb_array_elements(Entry.content).table_valued(column("value", JSONB))
+            stmt = stmt.where(
+                select(1)
+                .select_from(blocks)
+                .where(
+                    blocks.c.value["type"].astext == "meaning",
+                    dictionary.text_match_condition(blocks.c.value["vi"].astext, query),
+                )
+                .exists()
+            )
+        else:
+            stmt = stmt.where(dictionary.text_match_condition(Entry.search_text, query))
     return stmt

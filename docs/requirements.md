@@ -359,7 +359,7 @@ Các chỉ tiêu dưới đây áp dụng cho dữ liệu cỡ JMdict (khoảng 
 
 | Mã | Nhóm | Yêu cầu |
 | --- | --- | --- |
-| NFR-01 | Hiệu năng | /search có p95 dưới 300 ms khi không dùng semantic search, dưới 800 ms khi có |
+| NFR-01 | Hiệu năng | /search không semantic có p95 < 300 ms khi tuần tự và < 600 ms ở 10 request đồng thời, đo bằng uvicorn qua HTTP thật trên môi trường deploy; ASGITransport chỉ dùng để so sánh trước/sau |
 | NFR-02 | Hiệu năng | Import 1.000 dòng xong bước matching trong dưới 30 giây |
 | NFR-03 | Tài nguyên | API chạy được với 512 MB RAM khi đã nạp Sudachi bản core |
 | NFR-04 | Bảo mật | Mật khẩu băm Argon2/bcrypt; JWT ký bằng secret lấy từ biến môi trường |
