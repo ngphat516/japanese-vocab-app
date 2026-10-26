@@ -17,8 +17,8 @@ Ngày bắt đầu: 20/10/2026. Phạm vi: backend P1; không triển khai front
 Đã tiếp tục và kiểm chứng xong bước tối ưu search (milestone 0) ngày 20/10/2026.
 Milestone 0 đã commit tại `51e0278` (`perf(search): paginate in SQL, trigram operators`).
 Chưa hoàn thành toàn bộ P1; các tính năng P1 còn lại chưa được triển khai trong bước này.
-Milestone 1 NLP, Milestone 2 search lemma/ví dụ và Milestone 3 Sổ từ đã hoàn tất.
-Kết quả kiểm chứng ở từng mục bên dưới; dừng sau Milestone 3.
+Milestone 1 NLP, Milestone 2 search lemma/ví dụ, Milestone 3 Sổ từ và Milestone 4
+furigana/dictionary/mục từ thủ công đã hoàn tất. Kết quả ở từng mục bên dưới; dừng sau M4.
 
 ## Thay đổi search
 
@@ -556,3 +556,147 @@ uv run python -m scripts.measure_m3_exports
 Ba commit theo phạm vi: `fa3a07b` sửa NLP/count, `5d4011c` history/saved/collections, và `feat(notebook): export anki csv markdown`.
 
 **Milestone 3 hoàn tất; dừng sau Milestone 3.** IMP-11 vẫn hoãn; không triển khai furigana tự động M4, SRS hay frontend. Không thay kết luận NFR deploy bằng kết quả ASGI local.
+
+## Milestone 4 — TB-06/07/08, DICT-08/09 và nguồn Hán Việt
+
+Ngày 27/10/2026. Bắt đầu từ `main` sau merge M3 (`0a082fc`), xóa nhánh M3 local đã
+merge, tạo nhánh `milestone-4-furigana`. Không làm M5/M6, không đo tải10 đồng thời;
+IMP-11 vẫn hoãn. DECISIONS60–68 ghi các thay đổi và quyền bootstrap admin riêng.
+
+### Triển khai và tương thích
+
+- Export tự render `漢字[よみ]` thành HTML ruby sau escape, gạch chân chứa ruby;
+  Anki bỏ filter furigana, mặt sau dùng Reading cho Expression. Giữ model/deck ID,
+  GUID và7 field cũ. Markdown dùng cùng ruby; frontmatter text thuần.
+- CSV vẫn UTF-8 BOM, thêm cột MeaningSource, ví dụ text thuần, JLPT null để trống.
+  Nghĩa ưu tiên meaning.vi, tối đa3 gloss phân biệt, nguồn nghĩa ghi một lần.
+- TB-07: migration0006 thêm content_furigana JSONB nullable và auto_furigana defaulttrue.
+  Sinh reading bên trong {{}}; giữ annotation có sẵn, override 私→わたし và 腹痛→ふくつう
+  theo mẫu đã duyệt. Ưu tiên kana của entry rồi headword cùng sách trước override/Sudachi;
+  homograph không duy nhất không được chọn tùy tiện. 金 dùng Sudachi; sửa tay qua TB-06.
+  Import tạo/match đầy đủ từ trong batch trước khi tính furigana để không phụ thuộc thứ tự dòng.
+- API entry/list/search/detail mặc định trả bản dẫn xuất, `?furigana=false` trả nguồn.
+  Export và endpoint examples dùng bản dẫn xuất. Tắt bằng auto_furigana trong JSON tạo/PATCH
+  entry, hoặc `POST /imports/{id}/commit?auto_furigana=false`. Các block meaning/raw/note
+  và bản dịch không được tự gắn cách đọc.
+- DICT-08: admin PATCH hanviet, khóa Word để ghi lịch sử old/new chính xác; không tạo audit
+  khi giá trị không đổi. Migration0007 tạo word_edits. DICT-09 trả metadata Hán tự và danh
+  sách từ phân trang id, chỉ từ JMdict hoặc entry public/own; ký tự sai422, chưa có404.
+- TB-06: POST lesson entries, PATCH/DELETE entry chỉ chủ sách. word_id phải có quyền xem;
+  kanji/kana match/tạo như import. Validate block/16.000 byte; trùng word/lesson409.
+  Migration0008 thêm version; PATCH bắt buộc ifMatch, khóa row rồi kiểm tra, stale409.
+  Mỗi lần save tính lại search_text/lemmas/example_lemmas/content_furigana và tăng version.
+  Cả ba migration có downgrade; chỉ thử downgrade trên DB tạm.
+
+### Backup, backfill và bảo toàn nguồn
+
+| Thời điểm | Backup (tương đối root repo) | Byte |
+| --- | --- | ---: |
+| Trước migration/backfill | `backups/milestone4/vocab-20261027-001411.dump` | 4.486.441 |
+| Trước bootstrap admin/seed JLPT | `backups/milestone4/vocab-20261027-002613.dump` | 4.980.529 |
+
+Cả hai là custom format; pg_restore đọc catalog thành công (`m4-backup-toc.log`,
+`m4-preseed-backup-toc.log`). Không downgrade DB thật.
+
+- Backfill đầu: quét11.906, dry-run11.906 thay đổi, ghi11.906, chạy lần hai0.
+- Sau bổ sung override 腹痛: dry-run1, ghi1, chạy tiếp0; nguồn không đổi.
+- Sau thêm7.811 entry JLPT: dry-run toàn bộ19.717 entry trả **0 thay đổi**.
+- Hash content + search_text của11.906 entry gốc trước/sau backfill và sau seed vẫn là
+  `9a396627773143b7e8a2f63ea4a5ff4e553b3ec4ba3a72394f7125e7c38067b1`.
+  Sau seed chỉ đối chiếu tập sách gốc1–4; không so hash toàn bảng đã có thêm entry hợp lệ.
+- Bằng chứng: `verification/m4-content-{before,after,final}.json`, `m4-db-final.json`,
+  `m4-backfill-{dry,first,second}.log`, `m4-refined-backfill-{dry,first,second}.log`,
+  `m4-backfill-postseed-dry.log` và `m4-migration.log`.
+
+### JLPT public và tài khoản admin
+
+Theo xác nhận trực tiếp của người dùng, tạo tài khoản admin **riêng** qua CLI
+`scripts/create_admin.py`; mật khẩu ngẫu nhiên chỉ lưu dưới key admin trong
+`apps/backend/data/pdf_imports/access.json`, cạnh tài khoản cũ, không in log/commit.
+user_id=1 giữ role=user; admin mới user_id=2. Backup trước khi tạo/seed như bảng trên.
+
+Nguồn [OpenJLPT](https://github.com/evanclan/OpenJLPT), commit
+`0d1d3410bec90bd4098a7c72de820543cb4f707c`, CC BY-SA4.0; giữ CSV/NOTICE/LICENSE local.
+Ghi công OpenJLPT, JMdict/EDRDG và Jonathan Waller theo NOTICE. Chỉ dùng nghĩa English
+có trong CSV, không tự dịch Việt hoặc nhập câu Tatoeba. Lesson nhóm50 dòng theo thứ tự.
+
+| Sách | Entry | Lesson | SHA-256 CSV |
+| --- | ---: | ---: | --- |
+| JLPT N5 | 674 | 14 | `ea82df093658fa35f24fd53073ce9a0a07765f50314bce04debf45b278ebfcd3` |
+| JLPT N4 | 630 | 13 | `2e8fe87d271afec8626a4083b268dd9289b5a4be0f5e243a630710ef84d27916` |
+| JLPT N3 | 1.659 | 34 | `46ba72fbc08c193f207648e4eea9a7879afb3b2638d74c4f5edd773c867892ba` |
+| JLPT N2 | 1.778 | 36 | `898840fe7f7c5c9e8975a0738380a1b86d762d038403b724dc2ece09d737fd30` |
+| JLPT N1 | 3.070 | 62 | `6eff6ba068a3951c29f9296a50016dee6c39060d43a13ad33a1e136f2928d35b` |
+
+Tổng **5 sách public, 7.811 entry, 159 lesson**. Lượt hai vẫn cùng ID/số lượng, không
+thêm trùng. `verification/m4-jlpt-{first,second}.log`, `m4-admin-bootstrap.log`,
+`m4-db-final.json`. Test dùng CSV tự biên soạn trong tmp, không tải mạng.
+
+### Hán Việt — CSV và mẫu, CHƯA seed DB
+
+Nguồn [Unihan17.0.0](https://www.unicode.org/Public/17.0.0/ucd/Unihan.zip), header
+Unihan_Readings.txt ghi17.0.0. SHA-256 TXT:
+`575e69c9ad85a4737a889a4f94cbd987042a90a1a6cc16dd3f4ed995c715b17c`.
+Unicode License V3 (`Unicode-3.0`), nguồn/license/notice tại `data/README.md` và
+`data/unihan/LICENSE.txt`; giữ cùng dữ liệu khi chia sẻ.
+
+- `data/hanviet.csv`: **8.306 chữ**, chỉ trường kVietnamese, NFC/viết hoa, nhiều âm nối|;
+  **138 chữ** có nhiều âm trong toàn dataset. Có thể lẫn âm Nôm, cần người dùng duyệt.
+- Trước JLPT: **840/1.129 chữ =74,40%**, 15 chữ local nhiều âm.
+- Sau seed JLPT, toàn bộ sách local: **1.353/2.004 chữ =67,51%**, **32 chữ** local nhiều âm.
+  Đếm chữ phân biệt trong words có entry; không tính tần suất xuất hiện.
+- Mẫu MANUAL30 chữ seed20261020: `apps/backend/verification/m4_hanviet_sample.md`,
+  gồm cả chữ thiếu reading. Metadata: `data/hanviet.metadata.json`, log
+  `verification/m4-hanviet{,-final}.log`. CSV nguồn và mẫu không push lên GitHub.
+- **Chưa chạy seed_hanviet trên DB thật.** Chờ người dùng duyệt mẫu; không tự thay âm từ chuẩn.
+
+### Mẫu furigana và export
+
+- `apps/backend/verification/m4_furigana_sample.md`: cùng30 câu, seed20261020 và thứ tự M1/M2,
+  cột gốc/có furigana. Không sửa OCR, kể cả 協カ; reading cần đối chiếu bằng mắt.
+- `apps/backend/verification/m4_exports/m4-sample-10.apkg`
+- `apps/backend/verification/m4_exports/m4-sample-10.csv`
+- `apps/backend/verification/m4_exports/m4-sample-10.zip`
+
+Đúng10 word_id của report M3; đã mở APKG SQLite (10 note/10 card, không media), CSV BOM
+(10 dòng, Examples không còn {{/}}/[reading]) và ZIP Markdown (10 file/frontmatter).
+Các dòng notebook/collection tạm đã rollback, saved trước/sau0/0. `verification.json`
+cùng thư mục và `verification/m4-export-measure.log` lưu kiểm chứng. Đây là mở lại bằng
+parser/SQLite, không tuyên bố đã kiểm tra giao diện Anki/Excel/Obsidian.
+
+### Kiểm chứng cuối
+
+**181/181 test PASS** trong117,28 giây: giữ170 test M3 và11 test mới. Coverage service/NLP
+tổng **97,40%**; auth95,2%, dictionary98,2%, imports97,3%, notebook service100%,
+notebook exports99,1%, search98,2%, textbooks94,1%, NLP98,0% (furigana100%).
+Check ngưỡng70% từng service/NLP đạt; Ruff check/format xanh **127 file**;
+git diff --check đạt. Migration upgrade→downgrade→upgrade chỉ chạy trên Testcontainers.
+
+Kết quả test cuối và coverage được ghi ở log/XML `verification/m4-tests.{log,xml}`,
+`m4-coverage.log`; Ruff `m4-ruff.log`, `m4-format.log`. Không hạ ngưỡng70%, không bỏ test cũ.
+Test mới bao gồm ruby/CSV/giới hạn nghĩa, idempotence/reading theo sách và entry, import
+tắt furigana/reading dòng sau, API bản gốc, backfill/source invariant, quyền admin/audit,
+kanji privacy, CRUD/ifMatch/trùng/16KB, JLPT offline/chạy lại và Unihan projection.
+
+RSS một worker uvicorn sau nạp core/searchHTTP200: **178.409.472 byte (170,14 MiB)**,
+M3 là169,48 MiB. Đo sau triển khai/backfill, trước seed JLPT; snapshot local, không phải
+peak RAM/export hay deploy. `verification/m4/resources.json`, `m4-resources.log`.
+Không chạy benchmark c=10 và không thay kết luận NFR deploy từ các milestone trước.
+
+Tái chạy từ apps/backend:
+
+```powershell
+uv run pytest --cov --cov-report=term-missing --cov-report=json
+uv run python scripts/check_coverage.py coverage.json
+uv run ruff check . ../../scripts
+uv run ruff format --check . ../../scripts
+uv run python -m scripts.backfill_furigana --dry-run
+uv run python -m scripts.verify_m4
+uv run python -m scripts.measure_m4_exports
+uv run python -m scripts.seed_jlpt_textbooks --admin-email YOUR_ADMIN_EMAIL --directory data/openjlpt
+uv run python -m scripts.build_hanviet_unihan data/unihan/Unihan_Readings.txt --version 17.0.0
+```
+
+Năm commit: sửa export; furigana dẫn xuất; dictionary/mục từ thủ công; JLPT public;
+Unihan + báo cáo kiểm chứng. **Dừng sau M4**, chưa M5/M6, IMP-11 tiếp tục hoãn;
+Hán Việt chỉ ở bước CSV/mẫu để duyệt.
