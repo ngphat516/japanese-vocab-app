@@ -4,7 +4,7 @@ from app.common.schemas import DB, Page, Size
 from app.modules.auth.dependencies import CurrentUser
 
 from . import service
-from .schemas import WordPatch
+from .schemas import KanjiPatch, WordPatch
 
 router = APIRouter(tags=["dictionary"])
 
@@ -17,3 +17,8 @@ async def patch_word(word_id: int, data: WordPatch, db: DB, user: CurrentUser):
 @router.get("/kanji/{char}")
 async def kanji(char: str, db: DB, user: CurrentUser, page: Page = 1, size: Size = 20):
     return await service.kanji_detail(db, user, char, page, size)
+
+
+@router.patch("/kanji/{char}")
+async def patch_kanji(char: str, data: KanjiPatch, db: DB, user: CurrentUser):
+    return await service.patch_kanji(db, user, char, data.hanviet)

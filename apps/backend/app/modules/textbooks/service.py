@@ -162,6 +162,10 @@ async def textbook_readings(db, textbook_id, additional_ids=()):
         .join(Lesson, Lesson.id == Entry.lesson_id)
         .where(Lesson.textbook_id == textbook_id),
         additional_ids,
+        select(Entry.word_id)
+        .join(Lesson, Lesson.id == Entry.lesson_id)
+        .join(Textbook, Textbook.id == Lesson.textbook_id)
+        .where(Textbook.visibility == "public"),
     )
 
 

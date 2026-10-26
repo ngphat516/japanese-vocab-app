@@ -12,13 +12,84 @@ from app.core.exceptions import AppError
 from app.nlp.kanji import breakdown
 from app.nlp.normalize import is_vietnamese, kana_normalize, to_romaji
 
-from .models import Kanji, Word, WordEdit, WordSense
+from .models import Kanji, KanjiEdit, Word, WordEdit, WordSense
+
+
+async def hanviet_lock(db):
+    await db.execute(text("SELECT pg_advisory_xact_lock(1312968773)"))
+
+
+async def refresh_word_hanviet(db, char=None):
+    rows = (await db.scalars(select(Kanji))).all()
+    readings = {row.char: row.hanviet for row in rows}
+    stmt = (
+        select(Word)
+        .where(
+            ~select(WordEdit.id)
+            .where(WordEdit.word_id == Word.id, WordEdit.field == "hanviet")
+            .exists()
+        )
+        .with_for_update()
+    )
+    if char is not None:
+        stmt = stmt.where(Word.kanji.contains(char))
+    changed = 0
+    for word in (await db.scalars(stmt.order_by(Word.id))).all():
+        value = " ".join(p["hanviet"] for p in breakdown(word.kanji, readings) if p["hanviet"])
+        if word.hanviet != value:
+            word.hanviet = value
+            changed += 1
+    await db.flush()
+    return changed
+
+
+async def patch_kanji(db, user, char, values):
+    from app.modules.auth.service import require_admin
+
+    require_admin(user)
+    validate_kanji(char)
+    values = list(
+        dict.fromkeys(unicodedata.normalize("NFC", v.strip()).upper() for v in values if v.strip())
+    )
+    if any(len(v) > 100 for v in values):
+        raise AppError(422, "INVALID_HANVIET", "Âm Hán Việt quá dài")
+    await hanviet_lock(db)
+    item = await db.scalar(
+        select(Kanji)
+        .where(Kanji.char == char)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if item is None:
+        raise AppError(404, "KANJI_NOT_FOUND", "Không tìm thấy chữ Hán")
+    if item.hanviet != values or item.hanviet_source != "override":
+        db.add(
+            KanjiEdit(
+                char=char,
+                field="hanviet",
+                old={"hanviet": item.hanviet, "source": item.hanviet_source},
+                new={"hanviet": values, "source": "override"},
+                user_id=user.id,
+            )
+        )
+        item.hanviet, item.hanviet_source = values, "override"
+        await db.flush()
+        await refresh_word_hanviet(db, char)
+    return {"char": char, "hanviet": item.hanviet, "hanviet_source": item.hanviet_source}
+
+
+def validate_kanji(char):
+    import re
+
+    if not re.fullmatch(r"[一-鿿㐀-䶿豈-﫿\U00020000-\U000323af]", char):
+        raise AppError(422, "INVALID_KANJI", "Cần một chữ Hán")
 
 
 async def patch_hanviet(db, user, word_id, value):
     from app.modules.auth.service import require_admin
 
     require_admin(user)
+    await hanviet_lock(db)
     word = await db.scalar(select(Word).where(Word.id == word_id).with_for_update())
     if word is None:
         raise AppError(404, "WORD_NOT_FOUND", "Không tìm thấy từ")
@@ -32,12 +103,9 @@ async def patch_hanviet(db, user, word_id, value):
 
 
 async def kanji_detail(db, user, char, page, size):
-    import re
-
     from app.modules.textbooks.service import visible_word_ids
 
-    if not re.fullmatch(r"[一-鿿㐀-䶿豈-﫿\U00020000-\U000323af]", char):
-        raise AppError(422, "INVALID_KANJI", "Cần một chữ Hán")
+    validate_kanji(char)
     item = await db.get(Kanji, char)
     if item is None:
         raise AppError(404, "KANJI_NOT_FOUND", "Không tìm thấy chữ Hán")
@@ -52,6 +120,7 @@ async def kanji_detail(db, user, char, page, size):
         "meaning": item.meaning,
         "strokes": item.strokes,
         "hanviet": item.hanviet,
+        "hanviet_source": item.hanviet_source,
         "jlpt_level": item.jlpt_level,
         "words": {
             "items": await describe_many(db, words),
@@ -65,7 +134,11 @@ async def kanji_detail(db, user, char, page, size):
 async def kanji_breakdown(db, text):
     chars = list(dict.fromkeys(c for c in text if "一" <= c <= "鿿"))
     rows = {r.char: r for r in (await db.scalars(select(Kanji).where(Kanji.char.in_(chars)))).all()}
-    return breakdown(text, {char: row.hanviet for char, row in rows.items()})
+    return breakdown(
+        text,
+        {char: row.hanviet for char, row in rows.items()},
+        {char: row.hanviet_source for char, row in rows.items()},
+    )
 
 
 async def create_word(db, kanji, kana, **extra):
@@ -90,19 +163,42 @@ async def match(db, kanji, kana):
     return list((await db.scalars(statement.order_by(Word.id))).all())
 
 
-async def headword_readings(db, ids, additional_ids=()):
+async def match_many(db, spellings):
+    normalized = [(kanji, kana_normalize(kana)) for kanji, kana in spellings]
+    words = (
+        await db.scalars(
+            select(Word)
+            .where(Word.kana_norm.in_({kana for _, kana in normalized}))
+            .order_by(Word.id)
+        )
+    ).all()
+    by_reading = {}
+    for word in words:
+        by_reading.setdefault(word.kana_norm, []).append(word)
+    return [
+        [w for w in by_reading.get(kana, []) if not kanji or w.kanji == kanji]
+        for kanji, kana in normalized
+    ]
+
+
+async def headword_readings(db, ids, additional_ids=(), fallback_ids=None):
     # Omit conflicting textbook readings instead of guessing among homographs.
+    preferred = or_(Word.id.in_(ids), Word.id.in_(additional_ids))
+    fallback = Word.id.in_(fallback_ids) if fallback_ids is not None else literal(False)
     rows = (
         await db.execute(
-            select(Word.kanji, Word.kana)
-            .where(or_(Word.id.in_(ids), Word.id.in_(additional_ids)), Word.kanji != "")
+            select(Word.kanji, Word.kana, preferred.label("preferred"))
+            .where(or_(preferred, fallback, Word.jmdict_id.is_not(None)), Word.kanji != "")
             .order_by(Word.id)
         )
     ).all()
     variants = {}
-    for kanji, kana in rows:
-        variants.setdefault(kanji, set()).add(kana)
-    return {kanji: next(iter(values)) for kanji, values in variants.items() if len(values) == 1}
+    for kanji, kana, priority in rows:
+        variants.setdefault(kanji, {}).setdefault(priority, set()).add(kana)
+    selected = {
+        kanji: groups.get(True, groups.get(False, set())) for kanji, groups in variants.items()
+    }
+    return {kanji: next(iter(values)) for kanji, values in selected.items() if len(values) == 1}
 
 
 async def get_word(db, word_id):
@@ -127,8 +223,8 @@ async def describe(db, word):
 
 async def describe_many(db, words):
     chars = {c for word in words for c in word.kanji if "一" <= c <= "鿿"}
-    readings = {
-        row.char: row.hanviet
+    kanjis = {
+        row.char: row
         for row in (await db.scalars(select(Kanji).where(Kanji.char.in_(chars)))).all()
     }
     return [
@@ -139,7 +235,11 @@ async def describe_many(db, words):
             "romaji": word.romaji,
             "hanviet": word.hanviet,
             "jlpt_level": word.jlpt_level,
-            "kanji_breakdown": breakdown(word.kanji, readings),
+            "kanji_breakdown": breakdown(
+                word.kanji,
+                {c: r.hanviet for c, r in kanjis.items()},
+                {c: r.hanviet_source for c, r in kanjis.items()},
+            ),
             "saved": False,
         }
         for word in words
@@ -472,18 +572,45 @@ async def seed_kanjidic(db, path):
         )
 
 
-async def seed_hanviet(db, path):
-    text = await asyncio.to_thread(Path(path).read_text, encoding="utf-8-sig")
-    for row in csv.DictReader(io.StringIO(text)):
-        values = [x.strip() for x in row["hanviet"].split("|") if x.strip()]
-        stmt = insert(Kanji).values(char=row["kanji"], hanviet=values, meaning="")
-        await db.execute(
-            stmt.on_conflict_do_update(index_elements=["char"], set_={"hanviet": values})
-        )
-    for word in (await db.scalars(select(Word))).all():
-        word.hanviet = " ".join(
-            x["hanviet"] for x in await kanji_breakdown(db, word.kanji) if x["hanviet"]
-        )
+async def seed_hanviet(db, path, overrides=None):
+    await hanviet_lock(db)
+    values = {}
+    for source_path, override in [(path, False), (overrides, True)]:
+        if source_path is None:
+            continue
+        source_text = await asyncio.to_thread(Path(source_path).read_text, encoding="utf-8-sig")
+        for row in csv.DictReader(io.StringIO(source_text)):
+            validate_kanji(row["kanji"])
+            readings = list(
+                dict.fromkeys(
+                    unicodedata.normalize("NFC", x.strip()).upper()
+                    for x in row["hanviet"].split("|")
+                    if x.strip()
+                )
+            )
+            source = "override" if override else row.get("source") or None
+            if (
+                source is not None
+                and source not in {"unihan", "override"}
+                and not source.startswith("unihan_variant:U+")
+            ):
+                raise ValueError("Unknown hanviet source")
+            values[row["kanji"]] = (readings, source)
+    current = {k.char: k for k in (await db.scalars(select(Kanji))).all()}
+    edited = set((await db.scalars(select(KanjiEdit.char).distinct())).all())
+    changed = 0
+    for char, (readings, source) in values.items():
+        if char in edited:
+            continue
+        old = current.get(char)
+        if old is None:
+            db.add(Kanji(char=char, hanviet=readings, hanviet_source=source, meaning=""))
+            changed += 1
+        elif old.hanviet != readings or old.hanviet_source != source:
+            old.hanviet, old.hanviet_source = readings, source
+            changed += 1
+    await db.flush()
+    return {"kanji_changed": changed, "words_changed": await refresh_word_hanviet(db)}
 
 
 async def seed_jlpt(db, path):

@@ -16,7 +16,10 @@ def test_target_override_private_and_idempotence():
     assert add_furigana("{{緊張して}}") == "{{緊張[きんちょう]して}}"
     assert add_furigana("{{腹痛}}", {"腹痛": "ふくつう"}) == "{{腹痛[ふくつう]}}"
     assert add_furigana("私") == "私[わたし]"
-    assert add_furigana("腹痛") == "腹痛[ふくつう]"
+    assert (
+        "腹痛"
+        not in __import__("app.nlp.furigana", fromlist=["READING_OVERRIDES"]).READING_OVERRIDES
+    )
     assert add_furigana("腹痛", {"腹痛": "はらいた"}) == "腹痛[はらいた]"
     original = "では{{緊張[きんちょう]して}}私[わたくし]"
     assert add_furigana(original) == original

@@ -55,8 +55,8 @@ async def test_DICT_06_kanji_hanviet(seeded):
 
 async def test_DICT_07_breakdown(seeded):
     assert await s.kanji_breakdown(seeded, "緊張する") == [
-        {"char": "緊", "hanviet": "KHẨN"},
-        {"char": "張", "hanviet": "TRƯƠNG"},
+        {"char": "緊", "hanviet": "KHẨN", "hanviet_source": None},
+        {"char": "張", "hanviet": "TRƯƠNG", "hanviet_source": None},
     ]
     assert await s.kanji_breakdown(seeded, "ゆるむ") == []
     word = (await s.match(seeded, "緊張", "きんちょう"))[0]

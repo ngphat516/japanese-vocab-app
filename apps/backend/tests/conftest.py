@@ -10,6 +10,10 @@ from testcontainers.community.postgres import PostgresContainer
 
 os.environ.setdefault("JWT_SECRET", "test-only-secret-with-at-least-32-characters")
 os.environ["RATE_LIMIT_ENABLED"] = "false"
+os.environ["IMPORT_MODE"] = "sync"
+from app.worker import configure_event_loop
+
+configure_event_loop()
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

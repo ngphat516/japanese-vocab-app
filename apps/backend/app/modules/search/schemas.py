@@ -8,6 +8,7 @@ from app.modules.textbooks.blocks import Block
 class KanjiPart(BaseModel):
     char: str
     hanviet: str
+    hanviet_source: str | None = None
 
 
 class WordSummary(BaseModel):

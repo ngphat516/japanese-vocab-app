@@ -3,9 +3,10 @@ import io
 from pathlib import Path
 
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.modules.dictionary import service as dictionary
 from app.modules.textbooks import service as textbooks
@@ -50,6 +51,21 @@ async def upload(db, user, textbook_id, adapter, filename, payload):
         raise AppError(422, "UNKNOWN_ADAPTER", "Adapter không được hỗ trợ")
     if adapter == "mimikara" and book.visibility != "private":
         raise AppError(422, "PRIVATE_REQUIRED", "Mimikara phải được import vào giáo trình private")
+    if len(payload) > 5 * 1024 * 1024:
+        raise AppError(413, "IMPORT_FILE_TOO_LARGE", "File vượt quá 5 MB")
+    if get_settings().import_mode == "async":
+        job = ImportJob(
+            user_id=user.id,
+            textbook_id=textbook_id,
+            adapter=adapter,
+            file_key=Path(filename).name,
+            payload=payload,
+            status="pending",
+        )
+        db.add(job)
+        await db.flush()
+        await enqueue(db, job.id, "parse")
+        return job
     source = io.BytesIO(payload)
     source.name = filename
     try:
@@ -72,37 +88,97 @@ async def upload(db, user, textbook_id, adapter, filename, payload):
         )
         db.add(job)
         await db.flush()
-        for number, row in enumerate(rows, 1):
-            await textbooks.ensure_lesson(db, user, textbook_id, row.lesson_no)
-            candidates = await dictionary.match(db, row.kanji, row.kana)
-            status = "auto" if len(candidates) == 1 else "ambiguous" if candidates else "none"
-            job.matched += status == "auto"
-            job.ambiguous += status == "ambiguous"
-            db.add(
-                ImportRow(
-                    job_id=job.id,
-                    row_no=number,
-                    raw=row.raw,
-                    kanji=row.kanji,
-                    kana=row.kana,
-                    lesson_no=row.lesson_no,
-                    order_no=row.order_no,
-                    content=[x.model_dump(exclude_none=True) for x in row.content],
-                    match_status=status,
-                    candidate_word_ids=[w.id for w in candidates],
-                    chosen_word_id=candidates[0].id if status == "auto" else None,
-                )
-            )
+        await stage_rows(db, user, job, rows)
         job.status = "review"
         await db.flush()
     return job
+
+
+async def stage_rows(db, user, job, rows, start=0):
+    lessons = {}
+    matches = await dictionary.match_many(db, [(row.kanji, row.kana) for row in rows])
+    for number, (row, candidates) in enumerate(zip(rows, matches, strict=True), start + 1):
+        if row.lesson_no not in lessons:
+            lessons[row.lesson_no] = await textbooks.ensure_lesson(
+                db, user, job.textbook_id, row.lesson_no
+            )
+        status = "auto" if len(candidates) == 1 else "ambiguous" if candidates else "none"
+        job.matched += status == "auto"
+        job.ambiguous += status == "ambiguous"
+        db.add(
+            ImportRow(
+                job_id=job.id,
+                row_no=number,
+                raw=row.raw,
+                kanji=row.kanji,
+                kana=row.kana,
+                lesson_no=row.lesson_no,
+                order_no=row.order_no,
+                content=[x.model_dump(exclude_none=True) for x in row.content],
+                match_status=status,
+                candidate_word_ids=[w.id for w in candidates],
+                chosen_word_id=candidates[0].id if status == "auto" else None,
+            )
+        )
+        job.processed = number
+    await db.flush()
+
+
+def job_output(job):
+    fields = [
+        "id",
+        "user_id",
+        "textbook_id",
+        "adapter",
+        "file_key",
+        "status",
+        "total",
+        "matched",
+        "ambiguous",
+        "failed",
+        "error",
+        "created_at",
+        "updated_at",
+    ]
+    return {
+        **{name: getattr(job, name) for name in fields},
+        "progress": {"processed": job.processed, "total": job.total},
+    }
+
+
+async def enqueue(db, job_id, phase):
+    import json
+
+    await db.execute(text("SELECT set_config('search_path', 'procrastinate,public', true)"))
+    return await db.scalar(
+        text(
+            "SELECT (procrastinate_defer_jobs_v1(ARRAY[ROW('imports', 'vocab.import', 0, :lock, :lock, CAST(:args AS jsonb), NULL)::procrastinate_job_to_defer_v1]))[1]"
+        ),
+        {"lock": f"import:{job_id}", "args": json.dumps({"job_id": job_id, "phase": phase})},
+    )
+
+
+async def request_commit(db, user, job_id, auto_furigana):
+    job = await get_job(db, user, job_id, True)
+    if job.status != "review":
+        raise AppError(409, "IMPORT_STATE", "Job không ở bước review")
+    if await db.scalar(
+        select(ImportRow.id)
+        .where(ImportRow.job_id == job_id, ImportRow.match_status == "ambiguous")
+        .limit(1)
+    ):
+        raise AppError(409, "REVIEW_REQUIRED", "Còn dòng cần xác nhận")
+    job.status, job.auto_furigana, job.processed = "commit_pending", auto_furigana, 0
+    await enqueue(db, job_id, "commit")
+    await db.flush()
+    return job_output(job)
 
 
 async def get_job(db, user, job_id, lock=False):
     stmt = select(ImportJob).where(ImportJob.id == job_id, ImportJob.user_id == user.id)
     if lock:
         stmt = stmt.with_for_update()
-    job = await db.scalar(stmt)
+    job = await db.scalar(stmt.execution_options(populate_existing=True))
     if not job:
         raise AppError(404, "IMPORT_NOT_FOUND", "Không tìm thấy import")
     await textbooks.get_textbook(db, user, job.textbook_id, True)
@@ -150,9 +226,10 @@ async def review(db, user, job_id, row_id, data):
     return row
 
 
-async def commit(db, user, job_id, auto_furigana=True):
+async def commit(db, user, job_id, auto_furigana=True, *, worker=False):
     job = await get_job(db, user, job_id, True)
-    if job.status != "review":
+    book = await textbooks.get_textbook(db, user, job.textbook_id, True)
+    if job.status != ("committing" if worker else "review"):
         raise AppError(409, "IMPORT_STATE", "Job không ở bước review")
     rows = (
         await db.scalars(
@@ -165,6 +242,7 @@ async def commit(db, user, job_id, auto_furigana=True):
         async with db.begin_nested():
             job.status = "committing"
             prepared = []
+            lesson_cache = {}
             for row in rows:
                 if row.match_status == "skipped":
                     continue
@@ -178,11 +256,16 @@ async def commit(db, user, job_id, auto_furigana=True):
                         if exact
                         else (await dictionary.create_word(db, row.kanji, row.kana)).id
                     )
-                lesson = await textbooks.ensure_lesson(db, user, job.textbook_id, row.lesson_no)
+                if row.lesson_no not in lesson_cache:
+                    lesson_cache[row.lesson_no] = await textbooks.ensure_lesson(
+                        db, user, book.id, row.lesson_no
+                    )
+                lesson = lesson_cache[row.lesson_no]
                 prepared.append((lesson.id, word_id, row.order_no, blocks))
+            word_cache = await dictionary.all_by_ids(db, {item[1] for item in prepared})
             readings = (
                 await textbooks.textbook_readings(
-                    db, job.textbook_id, [item[1] for item in prepared]
+                    db, job.textbook_id, [word.id for word in word_cache]
                 )
                 if auto_furigana
                 else {}
@@ -199,6 +282,8 @@ async def commit(db, user, job_id, auto_furigana=True):
                     readings=readings,
                 )
             job.status = "done"
+            job.processed = job.total
+            job.payload = None
             await db.flush()
     except (AppError, IntegrityError, ValidationError) as exc:
         # Savepoint reverts entries AND newly created words. Keep failure status outside it.

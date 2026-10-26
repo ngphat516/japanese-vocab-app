@@ -9,7 +9,7 @@ japanese-vocab-app/
 │   └── backend/           # Backend MVP P0, Python / FastAPI
 ├── docs/                  # Requirements, quyết định và báo cáo
 ├── scripts/               # Cấu hình, kiểm tra và backup chung
-├── docker-compose.yml     # Postgres + API
+├── docker-compose.yml     # Postgres + API + import worker
 └── .env.example
 ```
 
@@ -36,6 +36,18 @@ uv sync --frozen
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
+
+Import mặc định bất đồng bộ (`IMPORT_MODE=async`). Chạy thêm một terminal backend:
+
+```powershell
+uv run python -m app.worker
+```
+
+Chạy migration trước worker. Trên Windows, entrypoint worker tự cấu hình SelectorEventLoop
+cho psycopg; API tiếp tục dùng asyncpg. Compose dùng cùng build backend cho worker và đợi
+API healthy sau migration. `IMPORT_MODE=sync` giữ luồng import đồng bộ để kiểm thử tương thích.
+Async upload/commit trả202; theo dõi GET /api/v1/imports/{id} tới review/done hoặc failed.
+Thông tin progress gồm processed/total; xử lý worker lỗi quá15 phút được đánh dấu failed khi khởi động lại.
 
 Khi chạy uvicorn trực tiếp, chỉ bật DB bằng `docker compose up -d db` và tắt API
 container để nhường cổng 8000. Hướng dẫn seed/import và endpoint ở

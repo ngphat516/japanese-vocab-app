@@ -8,7 +8,7 @@ from app.nlp.tokenizer import tokenize
 _HAN = r"一-鿿㐀-䶿豈-﫿々\U00020000-\U000323af"
 _PROTECTED = re.compile(r"[" + _HAN + r"ぁ-ヿ]+\[[ぁ-ゖァ-ヺー\s]+\]", re.DOTALL)
 # Reviewed readings supplied for M4. Entry/textbook readings take precedence.
-READING_OVERRIDES = {"私": "わたし", "腹痛": "ふくつう"}
+READING_OVERRIDES = {"私": "わたし"}
 
 
 def japanese_strings(content: list[dict]):

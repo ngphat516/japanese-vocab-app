@@ -17,8 +17,9 @@ Ngày bắt đầu: 20/10/2026. Phạm vi: backend P1; không triển khai front
 Đã tiếp tục và kiểm chứng xong bước tối ưu search (milestone 0) ngày 20/10/2026.
 Milestone 0 đã commit tại `51e0278` (`perf(search): paginate in SQL, trigram operators`).
 Chưa hoàn thành toàn bộ P1; các tính năng P1 còn lại chưa được triển khai trong bước này.
-Milestone 1 NLP, Milestone 2 search lemma/ví dụ, Milestone 3 Sổ từ và Milestone 4
-furigana/dictionary/mục từ thủ công đã hoàn tất. Kết quả ở từng mục bên dưới; dừng sau M4.
+Milestone 1 NLP, Milestone 2 search lemma/ví dụ, Milestone 3 Sổ từ, Milestone 4
+furigana/dictionary/mục từ thủ công và Milestone 5 Hán Việt/worker import đã hoàn tất.
+Kết quả ở từng mục bên dưới; dừng sau M5.
 
 ## Thay đổi search
 
@@ -700,3 +701,173 @@ uv run python -m scripts.build_hanviet_unihan data/unihan/Unihan_Readings.txt --
 Năm commit: sửa export; furigana dẫn xuất; dictionary/mục từ thủ công; JLPT public;
 Unihan + báo cáo kiểm chứng. **Dừng sau M4**, chưa M5/M6, IMP-11 tiếp tục hoãn;
 Hán Việt chỉ ở bước CSV/mẫu để duyệt.
+
+## Milestone 5 — Hán Việt và worker import (IMP-10)
+
+Ngày27/10/2026. Từ main `fc81ff1` sau merge M4, tạo nhánh
+`milestone-5-hanviet-worker`; nhánh M4 local đã merge được xóa. Phạm vi chỉ M5,
+IMP-11 vẫn hoãn, không làm M6, không đo tải10 đồng thời. DECISIONS69–81.
+
+### Hán Việt: nguồn, overrides và độ phủ
+
+Mẫu M4 được người dùng duyệt:16 đúng,3 sai âm Nôm,11 thiếu. Giữ Unihan17.0.0,
+đọc thêm Unihan_Variants.txt từ ZIP local đã có; chỉ lấy Traditional/Semantic/Z/
+SpecializedSemanticVariant khi chữ chưa có kVietnamese. Chặn chu trình; chỉ nhận
+các nguồn có một âm và đồng thuận, mâu thuẫn để trống. Không đổi chữ có âm trực tiếp
+bằng một biến thể chỉ vì âm biến thể trông quen hơn.
+
+`data/hanviet_overrides.csv` chứa13 âm đã duyệt và 滝 rỗng/chờ duyệt; ưu tiên cao nhất.
+Sửa 爽→SẢNG, 紳→THÂN; bỏ SÔNG của 滝. Đây là file nhỏ được Git quản lý; CSV sinh,
+nguồn Unihan và review không push. Unicode-3.0/license/provenance ở data/README.md.
+
+| Tập đo:2.004 chữ trong words có entry local | Có âm | Độ phủ |
+| --- | ---: | ---: |
+| kVietnamese trực tiếp (M4) | 1.353 | 67,51% |
+| Sau tra biến thể | 1.455 | 72,60% |
+| Sau override đã duyệt | 1.461 | **72,90%** |
+
+Script: `scripts/build_hanviet_m5.py`; log `verification/m5-hanviet-build.log`,
+SHA-256 readings/variants/overrides trong `data/hanviet.metadata.json`.
+SHA-256 Unihan_Variants.txt:
+`3f23cd71872633f3350875d25bd388e83b60fa71807634c9a600ec26f38a68ab`.
+**MANUAL300 chữ:** `apps/backend/verification/m5_hanviet_review.md`, gồm chữ/âm/source/
+số entry, đánh dấu rõ unihan_variant. Xếp theo số entry có chữ giảm dần, tie-break
+Unicode; một entry tính một lần/chữ trong headword và trường Nhật example/usage/
+collocation. Tập review khác tập headword dùng cho bảng độ phủ.
+
+Migration0009 thêm kanji.hanviet_source và kanji_edits, có downgrade. GET kanji và
+kanji_breakdown thêm source: override/unihan/unihan_variant:U+XXXX/null.
+PATCH /kanji chỉ admin, chuẩn NFC/uppercase/khử trùng, ghi audit và source=override.
+Tính lại words.hanviet trừ mọi từ đã có WordEdit hanviet qua DICT-08; seed cũng giữ
+âm Kanji đã sửa qua API có audit. Advisory transaction lock chung với sửa Word.
+
+Đã backup và seed vào DB local theo duyệt M5: **10.386 chữ** cập nhật, **7.032 từ**
+tính lại; lần hai và lần đối chiếu cuối đều **kanji_changed=0, words_changed=0**.
+Log `verification/m5-hanviet-{first,second,final-idempotence}.log`.
+Âm chưa duyệt vẫn hiển thị kèm source để frontend đánh dấu; sửa dần qua PATCH /kanji.
+
+### Bỏ override furigana và bảo toàn nguồn
+
+- Bỏ 腹痛 khỏi bảng override toàn cục, giữ 私→わたし. DB local thực tế không có headword
+  腹痛 trong sách gốc; bổ sung riêng cặp chuẩn **JMdict1501230 腹痛/ふくつう** từ JSON
+  đầy đủ đã kiểm SHA ở M1, không tạo entry OCR. Không dùng reading はらいた ít phổ biến
+  làm mặc định cho câu đã duyệt.
+- Reading ưu tiên chính entry/cùng sách, rồi headword public/JMdict duy nhất, rồi override
+  và Sudachi; không lấy headword private của sách khác và không chọn tùy tiện homograph.
+  Mẫu30 câu seed20261020 tại `verification/m5_furigana_sample.md` vẫn cho 腹痛[ふくつう].
+- Backfill: quét19.717, dry-run/ghi **1.134** bản dẫn xuất, chạy lần hai **0**.
+  `verification/m5-furigana-{dry,first,second}.log`.
+- Hash content+search_text toàn19.717 entry trước/sau và sau phép đo vẫn giống nhau:
+  `06dc8ed500a4acdbe639f64fc664c1a6ede03110c552376fd3c0a7b3f9a0449f`.
+  `verification/m5-content-{before,after,final}.json`. Sửa dữ liệu từ điển/Hán Việt và
+  cột dẫn xuất không làm thay nguồn OCR, summary hay search_text.
+
+### Backup local
+
+| Trước bước | Backup (root repo) | Byte |
+| --- | --- | ---: |
+| Migration/seed Hán Việt M5 | `backups/milestone5/vocab-20261027-005242.dump` | 5.343.718 |
+| Schema worker sau seed/backfill | `backups/milestone5/vocab-20261027-010224.dump` | 5.481.274 |
+
+Custom format pg_dump; cả hai catalog đọc được (`verification/m5-{hanviet,worker}-backup-toc.log`).
+Không downgrade DB thật; downgrade0009/0010 nằm trong kiểm thử migration DB tạm.
+
+### Worker và API async
+
+- Procrastinate **3.10.0**, psycopg **3.3.6**, psycopg-pool **3.3.3** trong uv.lock.
+  Migration0010 tạo schema procrastinate riêng bằng SQL/license upstream đã pin trong
+  repo, function/trigger có search_path riêng; không phụ thuộc chạy schema install CLI.
+  Payload BYTEA tối đa5MB, processed/updated_at/auto_furigana và index status/time ở ImportJob.
+- IMPORT_MODE=async mặc định; sync giữ contract201/upload,200/commit cho test cũ.
+  Async POST /imports trả202/pending, parse→matching/staging→review; POST commit trả202/
+  commit_pending, worker chuyển committing→done. GET job thêm progress{processed,total},
+  updated_at; không trả payload. Payload được dọn ở review/failed/done.
+- Enqueue gọi hàm Procrastinate trong cùng transaction asyncpg với domain job; lock và
+  queueing_lock import:{id} cùng claim FOR UPDATE ngăn hai worker ghi trùng. Staging có
+  progress từng lô100 sau validate toàn file. Commit giữ toàn bộ words/entries và done
+  trong một transaction; progress chỉ hoàn thành sau commit.
+- Lỗi parse/business failed có mã lỗi, xóa staging và không retry. Lỗi DB tạm tối đa3
+  retry sau lần đầu, backoff2/4/8 giây; kiểm tra cả trường hợp mất DB khi ghi trạng thái lỗi.
+  Job processing/committing quá15 phút khi startup thành WORKER_TIMEOUT, không replay
+  commit stale; SKIP LOCKED tránh transaction đang hoạt động. Retry cũng kiểm tra tuổi job.
+- app.worker cấu hình WindowsSelectorEventLoopPolicy trước asyncio.run; API vẫn asyncpg.
+  Pool1–2 connection, connect_timeout5 giây. Compose worker dùng cùng build backend,
+  chạy `uv run --no-sync python -m app.worker`, chờ API healthy sau migration.
+- Matching theo lô và cache lesson/word/book trong commit giảm truy vấn lặp, giữ đúng
+  auto/ambiguous/none, thứ tự ID, quyền và tính nguyên tử. Không tối ưu tải10 đồng thời.
+
+### NFR-02:1.000 dòng thật qua HTTP và worker riêng
+
+`scripts/measure_m5.py` lấy1.000 headword không mơ hồ từ entry local có nghĩa/câu nguồn,
+ghi CSV thật (không bịa nghĩa). API uvicorn loopback một worker + process Procrastinate
+riêng, API đã warm search, worker khởi động trước upload; poll50ms. Thời gian gồm auth,
+SQL, queue, matching/NLP và quan sát trạng thái. CSV SHA-256:
+`ed2ba21d2c077e528ef587707c9d0d506a72d45dec2f6cca421b37dba108a304`.
+
+| Lượt đo hợp lệ | Upload→review (s) | Commit→done (s) | Tổng đầu-cuối (s) |
+| --- | ---: | ---: | ---: |
+| Trước gộp matching/cache | 14,453 | 15,793 | **30,246** |
+| Sau gộp matching/cache | 9,749 | 12,077 | **21,827** |
+
+Lượt cuối **đạt mục tiêu tổng <30 giây local**; giữ nguyên lượt30,246 giây trong báo cáo,
+không thay số đo cũ. Cả hai dùng cùng CSV, xác nhận đúng1.000 entry sau done rồi xóa
+đúng sách/import/queue job tạm; số Word không tăng, hash nguồn giữ nguyên. Không còn
+API/worker probe hoặc container worker chạy sau đo. Đây là loopback local, chưa là
+bằng chứng hosting deploy. Không đo c=10.
+
+JSON/log cuối: `verification/m5/resources.json`, `verification/m5-measure.log`,
+`verification/m5/{api,worker}.log`, CSV `verification/m5/import-1000.csv` (Git-ignore).
+Số trước gộp ở `verification/m5/resources-before-batching.json` và
+`verification/m5-measure-before-batching.log`. Lượt thăm dò pool Windows bị timeout
+không được coi là phép đo thành công; đã cấu hình timeout và đo lại đầy đủ.
+
+### RSS API/worker/tổng
+
+| Process (PID Python thực, không launcher) | Byte | MiB |
+| --- | ---: | ---: |
+| API | 179.163.136 | **170,86** |
+| Worker | 220.344.320 | **210,14** |
+| Tổng cùng thời điểm | 399.507.456 | **381,00** |
+
+RSS cuối và peak quan sát ở sample50ms của lượt cuối bằng nhau; không khẳng định bắt
+được mọi peak ngắn. Tổng chỉ hai process Python, **không gồm PostgreSQL/OS/proxy** và
+không chứng minh instance hosting512MB luôn đủ. PID và sample peak trong resources.json;
+probe đã đóng. So với M4 API170,14 MiB, M5 API170,86 MiB trên dataset sau seed.
+
+### Kiểm chứng và tái chạy
+
+**193/193 test PASS** trong135,67 giây: toàn181 case cũ và12 case mới. Coverage tổng
+service/NLP/job/worker **97,10%**; từng service và NLP đều≥70%: auth95,2%, dictionary98,0%,
+imports97,4%, notebook100%, exports99,1%, search98,2%, textbooks94,1%, NLP98,0%.
+Job handler96,8%, worker84,0%; check_coverage đạt. Ruff check/format xanh **134 file**,
+git diff --check đạt. Không giảm ngưỡng hoặc bỏ test cũ.
+
+Kết quả cuối ở `verification/m5-tests.{log,xml}`, `m5-coverage.log`, `m5-ruff.log`,
+`m5-format.log`; giữ181 case cũ với IMPORT_MODE=sync và thêm case async trong DB tạm
+riêng để kiểm tra commit thật giữa API/worker. Có test hai worker, staging đúng một lần,
+parse failed không có staging/entry, commit rollback, quyền user khác404, backoff/retry
+exhaustion, lỗi ghi trạng thái retry, timeout không replay và Selector Windows.
+
+Coverage gate bổ sung cả job handler/worker ≥70%, không hạ ngưỡng service/NLP hoặc bỏ test.
+Build Linux và chạy worker --once trong image backend được kiểm tra; Compose config
+đạt. Log `verification/m5-linux-{build,worker}.log`; không tuyên bố toàn suite đã chạy Linux.
+
+Từ apps/backend, sau backup và Alembic upgrade head:
+
+```powershell
+uv sync --frozen
+uv run pytest --cov --cov-report=term-missing --cov-report=json
+uv run python scripts/check_coverage.py coverage.json
+uv run ruff check . ../../scripts
+uv run ruff format --check . ../../scripts
+uv run python -m scripts.build_hanviet_m5
+uv run python -m scripts.seed_hanviet --overrides data/hanviet_overrides.csv
+uv run python -m app.worker
+# Terminal khác: API mặc định IMPORT_MODE=async
+uv run uvicorn app.main:app
+```
+
+Phép đo độc lập tự mở/dọn process và sách tạm: `uv run python -m scripts.measure_m5`.
+Hai commit: `58acb6a feat(dictionary): hanviet variants, overrides and kanji edits` và
+`feat(imports): procrastinate worker and async import flow`. **Dừng sau M5**;
+IMP-11 vẫn hoãn, chưa M6.
