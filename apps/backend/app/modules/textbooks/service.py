@@ -1,16 +1,16 @@
 import asyncio
 import json
 
-from sqlalchemy import column, func, or_, select
+from sqlalchemy import column, func, literal, or_, select, union_all
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import AppError
 from app.modules.auth.service import require_admin
 from app.modules.dictionary import service as dictionary
-from app.nlp.furigana import search_text
-from app.nlp.normalize import is_vietnamese
-from app.nlp.tokenizer import entry_lemmas
+from app.nlp.furigana import search_text, strip_markup
+from app.nlp.normalize import is_vietnamese, kana_normalize
+from app.nlp.tokenizer import FORMAL_NOUNS, entry_lemmas, lemmas
 
 from .blocks import validate_content
 from .models import Entry, Lesson, Textbook
@@ -234,3 +234,105 @@ def visible_word_ids(user, textbook_ids=None, query=None):
         else:
             stmt = stmt.where(dictionary.text_match_condition(Entry.search_text, query))
     return stmt
+
+
+def example_key(word):
+    return word["kanji"] or kana_normalize(word["kana"])
+
+
+def example_entries(user, word):
+    # Keep the GIN containment operator on the unmodified array column.
+    return (
+        select(Entry.id)
+        .join(Lesson, Lesson.id == Entry.lesson_id)
+        .join(Textbook, Textbook.id == Lesson.textbook_id)
+        .where(
+            visible(user), Entry.word_id != word["id"], Entry.lemmas.contains([example_key(word)])
+        )
+    )
+
+
+async def example_counts(db, user, words):
+    statements = []
+    for word in words:
+        if example_key(word) and example_key(word) not in FORMAL_NOUNS:
+            sample = example_entries(user, word).limit(1001).subquery()
+            statements.append(
+                select(
+                    literal(word["id"]).label("word_id"), func.count(sample.c.id).label("observed")
+                ).select_from(sample)
+            )
+    if not statements:
+        return {}
+    rows = (await db.execute(union_all(*statements))).all()
+    return {
+        row.word_id: {"count": min(row.observed, 1000), "capped": row.observed > 1000}
+        for row in rows
+    }
+
+
+def example_sentences(content, key):
+    for block in content:
+        if block["type"] == "example":
+            candidates = [block["ja"]]
+        elif block["type"] == "usage":
+            candidates = [block.get("context"), *(v["ja"] for v in block.get("variants", []))]
+        else:
+            continue
+        for sentence in candidates:
+            if sentence and key in lemmas(strip_markup(sentence).replace("__", "")):
+                yield {"ja": sentence, "vi": block.get("vi")}
+
+
+def ocr_review_required(content):
+    return any(
+        block["type"] == "raw"
+        and isinstance(block.get("data"), dict)
+        and any(
+            block["data"].get(key) is True
+            for key in ("ocr_review_required", "ocr_review", "review_required")
+        )
+        for block in content
+    )
+
+
+async def word_examples(db, user, word, page, size):
+    key = example_key(word)
+    if not key:
+        return {"items": [], "total": 0, "page": page, "size": size}
+    rows = (
+        await db.execute(
+            select(Entry, Lesson, Textbook)
+            .join(Lesson, Lesson.id == Entry.lesson_id)
+            .join(Textbook, Textbook.id == Lesson.textbook_id)
+            .where(Entry.id.in_(example_entries(user, word)))
+            .order_by(Textbook.id, Lesson.number, Entry.order_no, Entry.id)
+        )
+    ).all()
+
+    def extract():
+        return [
+            {
+                **sentence,
+                "textbook": book.name,
+                "textbook_id": book.id,
+                "lesson": lesson.title,
+                "lesson_id": lesson.id,
+                "order_no": entry.order_no,
+                "entry_id": entry.id,
+                "source_word_id": entry.word_id,
+                "ocr_review_required": ocr_review_required(entry.content),
+            }
+            for entry, lesson, book in rows
+            for sentence in example_sentences(entry.content, key)
+        ]
+
+    sentences = await asyncio.to_thread(extract)
+    items = sentences[(page - 1) * size : page * size]
+    words = await dictionary.all_by_ids(db, {item["source_word_id"] for item in items})
+    descriptions = {
+        w.id: d for w, d in zip(words, await dictionary.describe_many(db, words), strict=True)
+    }
+    for item in items:
+        item["source_word"] = descriptions[item.pop("source_word_id")]
+    return {"items": items, "total": len(sentences), "page": page, "size": size}

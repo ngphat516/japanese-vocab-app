@@ -1,7 +1,9 @@
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.modules.dictionary.models import Word, WordSense
-from scripts.bench_seed import project, seed_full_jmdict
+from app.modules.textbooks.models import Entry
+from app.nlp.tokenizer import entry_lemmas
+from scripts.bench_seed import project, seed_examples, seed_full_jmdict
 from tests.conftest import FIXTURES
 
 
@@ -26,3 +28,12 @@ async def test_bulk_benchmark_loader_copies_all_projected_records(db):
     assert len(words) == metadata["words"] == 30
     assert len(senses) == metadata["senses"] == 30
     assert all(w.romaji and w.hanviet == "" and w.jlpt_level is None for w in words)
+    await db.execute(
+        text(
+            "INSERT INTO users(id,email,password_hash,display_name,role) VALUES (1,'bench@test.com','unused','Bench','admin')"
+        )
+    )
+    count = await seed_examples(await db.connection())
+    entries = (await db.scalars(select(Entry))).all()
+    assert len(entries) == count == 30
+    assert all(e.lemmas and e.lemmas == entry_lemmas(e.content) for e in entries)

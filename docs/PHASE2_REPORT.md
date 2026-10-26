@@ -336,3 +336,119 @@ furigana ở Milestone 4, IMP-11 vẫn hoãn, NB-06 xuất Anki giữ ở Milest
 - Bằng chứng: `verification/m2-content-{before,after}.json`, `m2-backfill-{dry,first,second}.log`.
 - SRCH-08/lịch sử và chức năng saved sang M3 (notebook); giữ field saved=false cũ.
   IMP-11 vẫn hoãn. Không thực hiện Milestone 3/4.
+
+### Ghi chú dành cho Milestone 4 — chưa thực hiện
+
+- Thêm furigana bên trong `{{ }}` nhưng giữ ngoặc: `{{協力}}` → `{{協力[きょうりょく]}}`.
+- Cách đọc từ đích lấy từ `kana` của entry; ưu tiên từ chuẩn JMdict/entry khi token trùng
+  từ đầu mục, ví dụ `腹痛` Mimikara phải là `ふくつう`.
+- Override `私` → `わたし`; `金` cạnh `を取る` / `お金` cần `かね`, xem xét ngữ cảnh
+  Sudachi hoặc cho người dùng sửa. Không thay đổi furigana trong milestone này.
+
+### Triển khai SRCH-09/10
+
+- Search thêm nguồn ứng viên lemma (`kanji` hoặc `kana_norm`), hạng exact → lemma →
+  prefix → meaning và tie-break ID. Giữ nguyên truy vấn exact, bộ lọc/quyền, tổng capped,
+  phân trang SQL và các field cũ; thêm `matched_by` trên từng item.
+- `appears_in_examples={count,capped}` chỉ cho top 10 toàn cục, phần sau và danh từ
+  hình thức trả null. Dùng containment GIN, loại entry cùng word_id và kiểm tra quyền
+  trước LIMIT 1001; gom count của trang thành một lần SQL.
+- Endpoint `GET /api/v1/words/{id}/examples?page=&size=` trả câu của example/usage,
+  lọc lemma từng trường câu, giữ markup/bản dịch; có giáo trình, bài, order_no,
+  entry_id, source_word và ocr_review_required. Thứ tự ổn định theo giáo trình/bài/
+  order_no/id rồi vị trí block/câu. Không sinh furigana.
+- Count là số entry có lemma (có thể từ collocation), total endpoint là số trường câu
+  example/usage khớp nên hai số có thể khác nhau. Danh từ hình thức vẫn mở được ví dụ.
+
+### Bổ sung kiểm chứng ngữ cảnh trợ từ
+
+- Bộ lọc dùng POS `助詞/接続助詞` cho `て/で`; `で` chỉ cách thức/địa điểm
+  (`格助詞`) không làm mất động từ độc lập: `服で来てください` vẫn có `来る`.
+- Lượt đối chiếu bổ sung: dry-run 65, ghi 65 entry, chạy tiếp 0; hash content/search_text
+  vẫn là `9a396627773143b7e8a2f63ea4a5ff4e553b3ec4ba3a72394f7125e7c38067b1`.
+  Bằng chứng: `verification/m2-refined-backfill-{dry,first,second}.log`. Mẫu 30 câu đã xuất lại.
+
+### Kiểm chứng cuối Milestone 2
+
+- **128/128 test PASS**, gồm toàn bộ 105 test M1 và 23 test bổ sung. Coverage service/NLP tổng **96.65%**; từng service và NLP ≥70% (check_coverage đạt).
+- Coverage từng service: auth 95,2%, dictionary 97,8%, imports 97,2%, search 98,0%, textbooks 92,9%; NLP 99,4%.
+- Ruff check + format theo phạm vi CI đạt (106 file); git diff --check đạt. Không hạ ngưỡng hoặc loại test cũ.
+- Log/XML: `verification/m2-tests.{log,xml}`, `m2-coverage.log`, `m2-ruff.log`, `m2-format.log`.
+- RSS uvicorn Windows sau nạp Sudachi và search có count M2: **176,345,088 byte (168.18 MiB)**; M1 **166,71 MiB**. Một worker, PID thực, HTTP 200; snapshot local dưới 512 MB, không phải peak/deploy. `verification/m2/resources.json` và `m2-resources.log`.
+- Backup custom-format **4.214.208 byte**, pg_restore đọc catalog thành công; `verification/m2-backup-toc.log`.
+
+### Benchmark HTTP trước/sau M2
+
+PostgreSQL 16 Testcontainers riêng cho từng lượt; baseline orchestration tại `c4686d6`, không dùng DB PDF local. Synthetic 200.000 words/400.000 senses, JMdict 323.447 words/721.391 senses (cùng bản English đầy đủ/SHA-256 đã ghi ở M1). **Mỗi dataset có 12.000 entry**, lemma tính thật bằng tokenizer. c=1: 20 request/query; c=10: 100 request/query, 10 đợt; size=20/page=1, nearest-rank p95, không loại lỗi. ASGI chỉ để so sánh; chưa xác nhận HTTP deploy.
+
+Sau COPY, dọn pending list của riêng `ix_entries_lemmas` trước ANALYZE/timing bằng `gin_clean_pending_list`; đây là bảo trì index bulk-load, không ép planner. Baseline không đọc index lemma. Lượt thăm dò trước bảo trì được giữ ở `m2-probe-j{1,10}.json`; đã đo lại toàn bộ số sau để loại ảnh hưởng thời điểm autovacuum.
+
+**Synthetic — p95 (ms)**
+
+| Query | c=1 trước | c=1 sau | c=10 trước | c=10 sau |
+| --- | ---: | ---: | ---: | ---: |
+| きんちょう | 102.96 | 104.95 | 351.75 | 455.63 |
+| kinchou | 97.25 | 97.18 | 307.59 | 317.36 |
+| 緊張 | 94.83 | 103.27 | 363.37 | 384.23 |
+| căng thẳng | 73.16 | 74.20 | 334.35 | 343.99 |
+| school | 109.75 | 128.14 | 354.59 | 429.12 |
+| い | 172.39 | 192.85 | 511.29 | 557.06 |
+| a | 33.46 | 34.17 | 282.70 | 272.66 |
+| 行かなかった | 96.95 | 107.01 | 311.18 | 387.26 |
+| 緊張して | 34.23 | 95.47 | 303.37 | 388.53 |
+| /words/{id}/examples | — | 38.87 | — | 451.30 |
+
+- Synthetic c=1: EXPLAIN count dùng **ix_entries_lemmas**; pending pages dọn trước đo: 177.
+
+- Synthetic c=10: EXPLAIN count dùng **ix_entries_lemmas**; pending pages dọn trước đo: 177.
+
+**JMdict — p95 (ms)**
+
+| Query | c=1 trước | c=1 sau | c=10 trước | c=10 sau |
+| --- | ---: | ---: | ---: | ---: |
+| きんちょう | 97.03 | 130.76 | 432.30 | 497.53 |
+| kinchou | 115.74 | 113.99 | 316.31 | 446.42 |
+| 緊張 | 173.05 | 163.79 | 378.88 | 431.59 |
+| căng thẳng | 93.97 | 75.89 | 333.14 | 708.47 |
+| school | 131.90 | 131.98 | 356.70 | 485.93 |
+| い | 203.16 | 195.37 | 726.49 | 532.81 |
+| a | 102.20 | 109.33 | 330.63 | 461.54 |
+| 行かなかった | 92.17 | 110.48 | 370.00 | 493.22 |
+| 緊張して | 95.72 | 101.21 | 427.00 | 460.82 |
+| /words/{id}/examples | — | 36.23 | — | 440.39 |
+
+- JMdict c=1: EXPLAIN count dùng **ix_entries_lemmas**; pending pages dọn trước đo: 177.
+
+- JMdict c=10: EXPLAIN count dùng **ix_entries_lemmas**; pending pages dọn trước đo: 177.
+
+- Sau M2: **2,400/2,400 HTTP 200**. **Có truy vấn vượt mốc NFR so sánh; xem bảng, không kết luận đạt toàn bộ ngưỡng.**
+- JSON/log đầy đủ: `verification/m2-{before,after}-{s1,s10,j1,j10}.{json,log}`; JSON chứa sample/status/total/capped/SQL timings, EXPLAIN SQL chậm nhất và EXPLAIN count. Endpoint examples chưa tồn tại trước M2 nên không có số baseline.
+
+JSON baseline giữ ref e77544b khi đo; hai file service dictionary/search có cùng byte tại c4686d6, dùng ref này để tái chạy.
+
+Tái chạy (từ apps/backend):
+
+```powershell
+uv run pytest --cov --cov-report=term-missing --cov-report=json
+uv run python scripts/check_coverage.py coverage.json
+uv run ruff check . ../../scripts
+uv run ruff format --check . ../../scripts
+uv run python -m scripts.bench_search --output verification/m2-after-s1.json
+uv run python -m scripts.bench_search --concurrency 10 --iterations 100 --output verification/m2-after-s10.json
+uv run python -m scripts.bench_search --jmdict data/bench/jmdict-eng-3.6.2.json --output verification/m2-after-j1.json
+uv run python -m scripts.bench_search --jmdict data/bench/jmdict-eng-3.6.2.json --concurrency 10 --iterations 100 --output verification/m2-after-j10.json
+uv run python -m scripts.measure_m2
+```
+
+Thêm `--baseline-ref c4686d6` để đo search trước M2 với cùng loader. Backup và verification là artifact local được Git bỏ qua.
+
+**Triển khai và kiểm chứng phạm vi Milestone 2 hoàn tất; ngưỡng NFR chưa đạt ổn định cho mọi truy vấn. Dừng tại Milestone 2**; SRCH-08/saved ở M3, IMP-11 vẫn hoãn; ghi chú M4 chưa triển khai.
+
+### Đo lặp truy vấn sát/vượt ngưỡng
+
+- Đo riêng `căng thẳng` trên JMdict, c=10, 100 request trong database tạm mới:
+  p95 **558,38 ms**, 100/100 HTTP 200; endpoint examples đi kèm **301,77 ms**,
+  100/100 HTTP 200. Bằng chứng: `verification/m2-vi-repeat-j10.{json,log}`.
+- Giữ nguyên **708,47 ms** của lượt đầy đủ trong bảng; không thay bằng số đo lặp.
+  Dữ liệu cho thấy biến thiên local, chưa đủ kết luận NFR ổn định. Triển khai SRCH-09/10
+  đã hoàn tất và dừng ở M2; chưa xác nhận NFR trên HTTP môi trường deploy.

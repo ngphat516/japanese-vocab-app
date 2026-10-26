@@ -1,9 +1,33 @@
+import asyncio
 import json
 
 from app.core.exceptions import AppError
 from app.modules.dictionary import service as dictionary
 from app.modules.textbooks import service as textbooks
-from app.nlp.normalize import normalize_query, query_type
+from app.nlp.normalize import is_vietnamese, normalize_query, query_type
+from app.nlp.tokenizer import FORMAL_NOUNS, lemmas
+
+
+def query_lemmas(query):
+    kind = query_type(query)
+    if is_vietnamese(query) or (
+        kind != "kanji" and not (kind == "kana" and len(query.replace(" ", "")) >= 3)
+    ):
+        return []
+    forms = [value for value in lemmas(query) if value not in FORMAL_NOUNS]
+    if set(forms) - {"する", "為る"}:
+        forms = [value for value in forms if value not in {"する", "為る"}]
+    return forms
+
+
+def matched_by(word, query, normalized, forms):
+    if word.kanji == query or word.kana_norm == normalized:
+        return "exact"
+    if word.kanji in forms or word.kana_norm in forms:
+        return "lemma"
+    if word.kanji.startswith(query) or word.kana_norm.startswith(normalized):
+        return "prefix"
+    return "meaning"
 
 
 def public_entry(entry, full=True):
@@ -17,6 +41,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
     normalized = normalize_query(query)
     if query_type(query) == "kanji":
         query = normalized
+    forms = await asyncio.to_thread(query_lemmas, query)
     words, total, total_capped = await dictionary.search_page(
         db,
         query,
@@ -26,6 +51,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
         textbooks.visible_word_ids(user, textbook_ids) if textbook_ids else None,
         page,
         size,
+        forms,
     )
     entries = await textbooks.visible_entries(
         db, user, word_ids=[w.id for w in words], textbook_ids=textbook_ids
@@ -35,11 +61,14 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
         by_word.setdefault(entry["word_id"], []).append(entry)
     start = (page - 1) * size
     descriptions = await dictionary.describe_many(db, words)
+    counts = await textbooks.example_counts(db, user, descriptions[: max(0, 10 - start)])
     result = {
         "items": [
             {
                 "word": description,
                 "entries": [public_entry(e, start + index < 10) for e in by_word.get(w.id, [])],
+                "matched_by": matched_by(w, query, normalized, forms),
+                "appears_in_examples": counts.get(w.id),
             }
             for index, (w, description) in enumerate(zip(words, descriptions, strict=True))
         ],
@@ -62,3 +91,8 @@ async def word_detail(db, user, word_id):
         "senses": await dictionary.senses(db, word_id),
         "entries": [public_entry(e) for e in await textbooks.visible_entries(db, user, [word_id])],
     }
+
+
+async def word_examples(db, user, word_id, page, size):
+    word = await dictionary.get_word(db, word_id)
+    return await textbooks.word_examples(db, user, await dictionary.describe(db, word), page, size)

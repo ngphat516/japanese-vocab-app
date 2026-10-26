@@ -19,10 +19,20 @@ from pathlib import Path
 
 from testcontainers.community.postgres import PostgresContainer
 
-QUERIES = ["きんちょう", "kinchou", "緊張", "căng thẳng", "school", "い", "a"]
+QUERIES = [
+    "きんちょう",
+    "kinchou",
+    "緊張",
+    "căng thẳng",
+    "school",
+    "い",
+    "a",
+    "行かなかった",
+    "緊張して",
+]
 
 
-async def measure(url, output, queries, iterations, jmdict=None, concurrency=1):
+async def measure(url, output, queries, iterations, jmdict=None, concurrency=1, baseline_ref=None):
     from httpx import ASGITransport, AsyncClient
     from sqlalchemy import event, text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -69,24 +79,26 @@ async def measure(url, output, queries, iterations, jmdict=None, concurrency=1):
             """)
             )
             await db.execute(
-                text("""
-                INSERT INTO textbooks(id,name,visibility,owner_id) VALUES (1,'Benchmark','private',1)
-            """)
+                text(
+                    "UPDATE words SET kanji='行く',kana='いく',kana_norm='いく',romaji='iku' WHERE id=2"
+                )
             )
-            await db.execute(
-                text("""
-                INSERT INTO lessons(id,textbook_id,number,title) VALUES(1,1,1,'Benchmark lesson')
-            """)
+            metadata = {"dataset": "synthetic", "words": 200000, "senses": 400000}
+        from scripts.bench_seed import seed_examples
+
+        metadata["entries"] = await seed_examples(db)
+        example_word_id = await db.scalar(
+            text(
+                "SELECT id FROM words WHERE kanji='緊張' AND kana_norm='きんちょう' ORDER BY id LIMIT 1"
             )
-            await db.execute(
-                text("""
-                INSERT INTO textbook_entries(word_id,lesson_id,order_no,content,search_text)
-                SELECT n,1,n,'[{"type":"meaning","en":"invented benchmark"}]'::jsonb,
-                CASE WHEN n=1 THEN 'căng thẳng' ELSE 'invented benchmark ' || n END
-                FROM generate_series(1,12000) n
-            """)
-            )
-            metadata = {"dataset": "synthetic", "words": 200000, "senses": 400000, "entries": 12000}
+        )
+        metadata["example_word_id"] = example_word_id
+        metadata["baseline_ref"] = baseline_ref
+        # Finish bulk-load GIN maintenance before timing. Otherwise pending-list
+        # cleanup by autovacuum at an arbitrary point changes the count plans.
+        metadata["lemma_gin_pending_pages_cleaned"] = await db.scalar(
+            text("SELECT gin_clean_pending_list('ix_entries_lemmas')")
+        )
         await db.execute(text("ANALYZE"))
 
     async def db_override():
@@ -113,13 +125,18 @@ async def measure(url, output, queries, iterations, jmdict=None, concurrency=1):
             base_url="http://bench",
             headers={"Authorization": "Bearer " + token(1, "access")[0]},
         ) as http:
-            for query in queries:
+            workloads = [(q, "/api/v1/search", {"q": q, "size": 20}) for q in queries]
+            if not baseline_ref:
+                workloads.append(
+                    ("examples", f"/api/v1/words/{example_word_id}/examples", {"size": 20})
+                )
+            for query, endpoint, params in workloads:
                 durations = []
                 statuses = []
 
-                async def request(query=query):
+                async def request(endpoint=endpoint, params=params):
                     start = time.perf_counter()
-                    response = await http.get("/api/v1/search", params={"q": query, "size": 20})
+                    response = await http.get(endpoint, params=params)
                     return (
                         response.status_code,
                         (time.perf_counter() - start) * 1000,
@@ -169,6 +186,17 @@ async def measure(url, output, queries, iterations, jmdict=None, concurrency=1):
             plan = await db.exec_driver_sql("EXPLAIN (ANALYZE, BUFFERS) " + statement, parameters)
             report["slowest_sql"] = statement
             report["explain"] = list(plan.scalars())
+        count_queries = [
+            (sql, parameters)
+            for _, sql, parameters in captured
+            if "@>" in sql and "count(" in sql.lower()
+        ]
+        if count_queries:
+            sql, parameters = count_queries[0]
+            async with engine.connect() as db:
+                plan = await db.exec_driver_sql("EXPLAIN (ANALYZE, BUFFERS) " + sql, parameters)
+                report["example_count_sql"] = sql
+                report["example_count_explain"] = list(plan.scalars())
         Path(output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print("Saved", output, flush=True)
     finally:
@@ -186,6 +214,9 @@ def main():
     )
     parser.add_argument("--jmdict", type=Path, help="Full jmdict-simplified English JSON")
     parser.add_argument("--concurrency", type=int, choices=range(1, 11), default=1)
+    parser.add_argument(
+        "--baseline-ref", help="Load search/dictionary orchestration from this Git ref"
+    )
     args = parser.parse_args()
     if args.iterations < 1:
         parser.error("iterations must be positive")
@@ -216,9 +247,38 @@ def main():
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
                 service.search = module.search
+            if args.baseline_ref:
+                from app.modules.dictionary import service as dictionary
+                from app.modules.search import service as search
+
+                for package, target in [("dictionary", dictionary), ("search", search)]:
+                    source = subprocess.check_output(
+                        [
+                            "git",
+                            "show",
+                            f"{args.baseline_ref}:apps/backend/app/modules/{package}/service.py",
+                        ]
+                    )
+                    path = Path(directory) / f"{package}_baseline.py"
+                    path.write_bytes(source)
+                    spec = importlib.util.spec_from_file_location(
+                        f"app.modules.{package}._bench_baseline", path
+                    )
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    if package == "dictionary":
+                        target.search_page = module.search_page
+                    else:
+                        target.search = module.search
             asyncio.run(
                 measure(
-                    url, args.output, args.queries, args.iterations, args.jmdict, args.concurrency
+                    url,
+                    args.output,
+                    args.queries,
+                    args.iterations,
+                    args.jmdict,
+                    args.concurrency,
+                    args.baseline_ref,
                 )
             )
 

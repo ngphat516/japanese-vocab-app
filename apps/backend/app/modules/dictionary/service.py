@@ -177,7 +177,7 @@ def text_match_condition(column, query):
     return or_(substring, column.bool_op("%")(query))
 
 
-def search_sources(query, normalized, jlpt, entry_matches, visible_ids):
+def search_sources(query, normalized, jlpt, entry_matches, visible_ids, lemma_forms=()):
     exact = or_(Word.kanji == query, Word.kana_norm == normalized)
     prefix = or_(
         prefix_condition(Word.kanji, query),
@@ -185,16 +185,25 @@ def search_sources(query, normalized, jlpt, entry_matches, visible_ids):
     )
     sources = [
         (select(Word.id.label("word_id")).where(exact), 0),
-        (select(Word.id.label("word_id")).where(prefix), 1),
+        (select(Word.id.label("word_id")).where(prefix), 2),
         (
             select(WordSense.word_id).where(meaning_condition(WordSense.gloss, query)),
-            2,
+            3,
         ),
     ]
+    if lemma_forms:
+        sources.append(
+            (
+                select(Word.id.label("word_id")).where(
+                    or_(Word.kanji.in_(lemma_forms), Word.kana_norm.in_(lemma_forms))
+                ),
+                1,
+            )
+        )
     # For one/two alphanumeric characters, similarity >= .3 implies substring:
     # sharing only the padded first-character trigram scores at most 1/4.
     if len(query) > 2 or not query.isalnum():
-        sources.append((select(WordSense.word_id).where(WordSense.gloss.bool_op("%")(query)), 2))
+        sources.append((select(WordSense.word_id).where(WordSense.gloss.bool_op("%")(query)), 3))
     sources.append((entry_matches, 3))
     if is_vietnamese(query):
         vie = (
@@ -206,7 +215,7 @@ def search_sources(query, normalized, jlpt, entry_matches, visible_ids):
         sources = [
             (
                 select(vie.c.word_id).where(text_match_condition(vie.c.gloss, query)),
-                2,
+                3,
             ),
             (entry_matches, 3),
         ]
@@ -221,14 +230,16 @@ def search_sources(query, normalized, jlpt, entry_matches, visible_ids):
     return filtered
 
 
-async def search_page(db, query, normalized, jlpt, entry_matches, visible_ids, page, size):
+async def search_page(
+    db, query, normalized, jlpt, entry_matches, visible_ids, page, size, lemma_forms=()
+):
     await db.execute(text("SET LOCAL work_mem = '16MB'"))
-    sources = search_sources(query, normalized, jlpt, entry_matches, visible_ids)
+    sources = search_sources(query, normalized, jlpt, entry_matches, visible_ids, lemma_forms)
     # Filter text sources before DISTINCT/ORDER/LIMIT. Otherwise a generic plan
     # can walk the entire word_id index looking for a handful of text matches.
     prepared_sources = []
     for index, (stmt, rank) in enumerate(sources):
-        if rank >= 2:
+        if rank >= 3:
             filtered = stmt.cte(f"search_source_{index}").prefix_with("MATERIALIZED")
             stmt = select(filtered.c.word_id)
         prepared_sources.append((stmt, rank))
@@ -238,7 +249,7 @@ async def search_page(db, query, normalized, jlpt, entry_matches, visible_ids, p
     count_sources = [
         select(source.c.word_id)
         for stmt, rank in sources
-        for source in [(stmt.distinct() if rank >= 2 else stmt).limit(1001).subquery()]
+        for source in [(stmt.distinct() if rank >= 3 else stmt).limit(1001).subquery()]
     ]
     count_ids = union_all(*count_sources).subquery()
     count_sample = select(count_ids.c.word_id).distinct().limit(1001).subquery()
@@ -248,7 +259,7 @@ async def search_page(db, query, normalized, jlpt, entry_matches, visible_ids, p
     bounded = []
     for stmt, rank in sources:
         column = stmt.selected_columns[0]
-        if rank < 2:
+        if rank < 3:
             # Word IDs are already unique. Sort the filtered matches instead of
             # walking the PK index in ID order and discarding nonmatching rows.
             stmt = stmt.order_by(column + 0)

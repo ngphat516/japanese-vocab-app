@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 from app.nlp.normalize import kana_normalize, to_romaji
+from app.nlp.tokenizer import entry_lemmas
 
 
 def project(path):
@@ -107,3 +108,43 @@ async def seed_full_jmdict(db, path):
     )
     print(json.dumps(metadata, ensure_ascii=True), flush=True)
     return metadata
+
+
+async def seed_examples(db):
+    """Same 12,000 textbook entries in both benchmark scenarios, with real NLP."""
+    from sqlalchemy import text
+
+    await db.execute(
+        text(
+            "INSERT INTO textbooks(id,name,visibility,owner_id) VALUES (1,'Benchmark','private',1)"
+        )
+    )
+    await db.execute(
+        text("INSERT INTO lessons(id,textbook_id,number,title) VALUES (1,1,1,'Benchmark lesson')")
+    )
+    ids = list((await db.execute(text("SELECT id FROM words ORDER BY id LIMIT 12000"))).scalars())
+    contents = [
+        [{"type": "meaning", "en": "invented benchmark"}, {"type": "example", "ja": sentence}]
+        for sentence in ["猫が部屋にいる。", "学校へ行かなかった。", "学校で緊張している。"]
+    ]
+    arrays = await asyncio.to_thread(lambda: [entry_lemmas(c) for c in contents])
+    records = []
+    for n, word_id in enumerate(ids, 1):
+        index = 2 if n % 101 == 0 else 1 if n % 97 == 0 else 0
+        records.append(
+            (
+                word_id,
+                1,
+                n,
+                json.dumps(contents[index], ensure_ascii=False),
+                ("căng thẳng " if n == 1 else "invented benchmark ") + contents[index][1]["ja"],
+                arrays[index],
+            )
+        )
+    raw = await db.get_raw_connection()
+    await raw.driver_connection.copy_records_to_table(
+        "textbook_entries",
+        records=records,
+        columns=["word_id", "lesson_id", "order_no", "content", "search_text", "lemmas"],
+    )
+    return len(records)
