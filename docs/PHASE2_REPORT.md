@@ -321,3 +321,18 @@ cần người dùng đối chiếu bằng mắt; không sửa bản gốc hoặ
 Milestone 1 hoàn tất, commit `feat(nlp): sudachi tokenizer, furigana, entry lemmas`.
 Dừng tại đây. **Chưa làm Milestone 2** (search lemma/appears_in_examples), chưa tự áp
 furigana ở Milestone 4, IMP-11 vẫn hoãn, NB-06 xuất Anki giữ ở Milestone 3.
+
+## Milestone 2 — SRCH-09/10
+
+### Bước 0: sửa lemma
+
+- Backup trước backfill: `backups/milestone2/vocab-20261026-210303.dump`.
+- Loại trợ động từ theo POS/ngữ cảnh; giữ động từ độc lập và する. Thêm normalized_form
+  và hiragana của dictionary_form; giữ text[] + GIN, giữ danh từ hình thức trong dữ liệu.
+- Quét 11.906 entry, dry-run 11.522 thay đổi; ghi 11.522; chạy lần hai 0.
+- Hash content/search_text trước/sau: `9a396627773143b7e8a2f63ea4a5ff4e553b3ec4ba3a72394f7125e7c38067b1`.
+  Script M2 dùng JSON sort_keys với id/content/search_text nên không so trực tiếp digest M1.
+- Mẫu MANUAL cùng seed/thứ tự 30 câu M1: `apps/backend/verification/m2_lemma_sample.md`.
+- Bằng chứng: `verification/m2-content-{before,after}.json`, `m2-backfill-{dry,first,second}.log`.
+- SRCH-08/lịch sử và chức năng saved sang M3 (notebook); giữ field saved=false cũ.
+  IMP-11 vẫn hoãn. Không thực hiện Milestone 3/4.

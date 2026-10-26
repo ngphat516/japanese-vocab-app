@@ -21,14 +21,14 @@ async def test_save_entry_keeps_summary_and_stores_lemmas(imported, db):
     word = await dictionary.create_word(db, "検証", "けんしょう")
     content = [{"type": "example", "ja": "{{行[い]かなかった}}"}]
     entry = await service.save_entry(db, user, lesson.id, word.id, 1, content)
-    assert entry.lemmas == ["行く"]
+    assert entry.lemmas == ["行く", "いく"]
     assert entry.search_text == search_text(content) == "行かなかった"
     result = (await client.get("/api/v1/search", params={"q": "検証"})).json()
     assert result["items"][0]["entries"][0]["summary"] == "行かなかった"
     await service.save_entry(
         db, user, lesson.id, word.id, 1, [{"type": "example", "ja": "食べました"}]
     )
-    assert entry.lemmas == ["食べる"]
+    assert entry.lemmas == ["食べる", "たべる"]
 
 
 async def test_backfill_dry_run_and_idempotence(imported, db):
