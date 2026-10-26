@@ -64,7 +64,7 @@ async def test_openapi_p0_contract_and_error_shape():
         assert "/api/v1/imports/{job_id}/commit" in schema["paths"]
         assert "/api/v1/words/{word_id}" in schema["paths"]
         assert "/api/v1/study/items" not in schema["paths"]
-        assert "post" not in schema["paths"]["/api/v1/lessons/{lesson_id}/entries"]
+        assert "post" in schema["paths"]["/api/v1/lessons/{lesson_id}/entries"]  # TB-06 M4
         for path in schema["paths"].values():
             for operation in path.values():
                 if isinstance(operation, dict):

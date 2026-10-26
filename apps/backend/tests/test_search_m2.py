@@ -97,7 +97,7 @@ async def test_SRCH_10_visibility_sentence_filter_markup_ocr_and_pagination(auth
     result = (await client.get(endpoint, params={"size": 1})).json()
     assert result["total"] == 1
     first = result["items"][0]
-    assert first["sentences"][0]["ja"] == "{{かべ}}に穴をあける。"
+    assert first["sentences"][0]["ja"] == "{{かべ}}に穴[あな]をあける。"
     assert first["sentences"][0]["vi"] == "Đục lỗ trên tường."
     assert first["textbook_id"] == book.id and first["lesson_id"] == lesson.id
     assert first["order_no"] == 2 and first["source_word"]["id"] == source.id
@@ -105,9 +105,9 @@ async def test_SRCH_10_visibility_sentence_filter_markup_ocr_and_pagination(auth
     second = (await client.get(endpoint, params={"size": 1, "page": 2})).json()
     assert second["items"] == []
     assert [s["ja"] for s in first["sentences"]] == [
-        "{{かべ}}に穴をあける。",
-        "壁を作る",
-        "壁を直す",
+        "{{かべ}}に穴[あな]をあける。",
+        "壁[かべ]を作[つく]る",
+        "壁[かべ]を直[なお]す",
     ]
     assert (await client.get(endpoint, params={"size": 1, "page": 2})).json() == second
     assert (await client.get(endpoint, params={"page": 5})).json()["items"] == []
@@ -132,7 +132,7 @@ async def test_SRCH_10_kana_only_formal_and_first_ten(authorized, db):
         "appears_in_examples"
     ]["count"] == 1
     result = (await client.get(f"/api/v1/words/{kana.id}/examples")).json()
-    assert [s["ja"] for i in result["items"] for s in i["sentences"]] == ["猫がいる。"]
+    assert [s["ja"] for i in result["items"] for s in i["sentences"]] == ["猫[ねこ]がいる。"]
     assert result["items"][0]["ocr_review_required"] is True
     formal = await dictionary.create_word(db, "", "こと")
     assert (await client.get("/api/v1/search?q=こと")).json()["items"][0][
@@ -227,7 +227,7 @@ async def test_SRCH_10_formal_count_null_but_examples_available(authorized, db):
         "appears_in_examples"
     ] is None
     items = (await client.get(f"/api/v1/words/{formal.id}/examples")).json()["items"]
-    assert len(items) == 1 and items[0]["sentences"][0]["ja"] == "{{こと}}を決める。"
+    assert len(items) == 1 and items[0]["sentences"][0]["ja"] == "{{こと}}を決[き]める。"
     assert items[0]["sentences"][0]["vi"] is None and items[0]["ocr_review_required"] is False
 
 

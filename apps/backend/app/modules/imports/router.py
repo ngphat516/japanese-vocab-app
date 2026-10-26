@@ -67,8 +67,8 @@ async def review(job_id: int, row_id: int, data: s.RowReview, db: DB, user: Curr
 
 
 @router.post("/{job_id}/commit")
-async def commit(job_id: int, db: DB, user: CurrentUser):
-    result = await service.commit(db, user, job_id)
+async def commit(job_id: int, db: DB, user: CurrentUser, auto_furigana: bool = True):
+    result = await service.commit(db, user, job_id, auto_furigana=auto_furigana)
     if result["status"] == "failed":
         error = result["error"]
         error["details"] = {"job_id": job_id, "status": "failed"}

@@ -25,6 +25,7 @@ CSV_COLUMNS = [
     "HanViet",
     "JLPT",
     "Meaning",
+    "MeaningSource",
     "Examples",
     "Notes",
     "Tags",
@@ -54,7 +55,7 @@ def project_rows(rows, words, sources, senses, user_id):
         entries = sources.get(word.id, [])
         meaning = list(
             dict.fromkeys(
-                f"{source_label(entry)}: {block['vi']}"
+                (block["vi"], source_label(entry))
                 for entry in entries
                 if entry["owner_id"] == user_id
                 for block in entry["content"]
@@ -64,19 +65,26 @@ def project_rows(rows, words, sources, senses, user_id):
         if not meaning:
             meaning = list(
                 dict.fromkeys(
-                    f"{'JMdict' if word.jmdict_id else 'Dictionary'} ({s['lang']}): {s['gloss']}"
+                    (
+                        s["gloss"],
+                        f"{'JMdict' if word.jmdict_id else 'Dictionary'} ({ {'eng': 'en', 'vie': 'vi'}.get(s['lang'], s['lang']) })",
+                    )
                     for s in senses.get(word.id, [])
                 )
             )
         if not meaning:
             meaning = list(
                 dict.fromkeys(
-                    f"{source_label(entry)}: {block.get('vi') or block.get('en')}"
+                    (block.get("vi") or block.get("en"), source_label(entry))
                     for entry in entries
                     for block in entry["content"]
                     if block["type"] == "meaning" and (block.get("vi") or block.get("en"))
                 )
             )
+        distinct = {}
+        for text, label in meaning:
+            distinct.setdefault(text, label)
+        meaning = list(distinct.items())[:3]
         examples = []
         key = textbooks.example_key({"kanji": word.kanji, "kana": word.kana})
         for entry in sorted(entries, key=lambda e: e["owner_id"] != user_id):
@@ -94,7 +102,8 @@ def project_rows(rows, words, sources, senses, user_id):
                 "reading": word.kana,
                 "hanviet": word.hanviet,
                 "jlpt": word.jlpt_level,
-                "meaning": "\n".join(meaning),
+                "meaning": "\n".join(text for text, _ in meaning),
+                "meaning_source": "; ".join(dict.fromkeys(label for _, label in meaning[:3])),
                 "examples": examples,
                 "note": saved.note,
                 "tags": saved.tags,
@@ -109,8 +118,13 @@ def example_text(row):
 
 
 def anki_html(value):
-    # Escape imported/user text first; permit only the target-word underline.
     value = html.escape(value)
+    # Only a contiguous kanji run receives ruby; preceding kana stays outside.
+    value = re.sub(
+        r"([一-鿿㐀-䶿豈-﫿々\U00020000-\U000323af]+)\[([ぁ-ゖァ-ヺー\s]+)\]",
+        r"<ruby>\1<rt>\2</rt></ruby>",
+        value,
+    )
     value = re.sub(r"\{\{(.*?)\}\}", r"<u>\1</u>", value, flags=re.DOTALL)
     return value.replace("\n", "<br>")
 
@@ -126,14 +140,14 @@ def anki_bytes(rows, user_id):
             {
                 "name": "Recognition",
                 "qfmt": "{{Expression}}",
-                "afmt": '{{FrontSide}}<hr id="answer">{{Reading}}<br>{{Meaning}}<br>{{HanViet}}<hr>{{furigana:Examples}}<hr>{{Notes}}<br>{{Source}}',
+                "afmt": '<ruby>{{Expression}}<rt>{{Reading}}</rt></ruby><hr id="answer">{{Meaning}}<br>{{HanViet}}<hr>{{Examples}}<hr>{{Notes}}<br>{{Source}}',
             }
         ],
         css=".card { font-family: sans-serif; font-size: 24px; text-align: left; } ruby rt { font-size: 0.6em; }",
     )
     deck = genanki.Deck(ANKI_DECK_ID, "Sổ từ tiếng Nhật")
     for row in rows:
-        notes = f"JLPT: {row['jlpt'] or 'none'}"
+        notes = f"JLPT: {row['jlpt']}" if row["jlpt"] else ""
         if row["note"]:
             notes += "\n" + row["note"]
         if row["tags"]:
@@ -141,7 +155,8 @@ def anki_bytes(rows, user_id):
         fields = [
             row["word"],
             row["reading"],
-            row["meaning"],
+            row["meaning"]
+            + ("\nNguồn nghĩa: " + row["meaning_source"] if row.get("meaning_source") else ""),
             row["hanviet"],
             "\n".join(example_text(row)),
             notes,
@@ -180,9 +195,10 @@ def csv_bytes(rows):
                     row["word"],
                     row["reading"],
                     row["hanviet"],
-                    row["jlpt"] or "none",
+                    row["jlpt"] or "",
                     row["meaning"],
-                    " / ".join(example_text(row)),
+                    row.get("meaning_source", ""),
+                    plain_examples(" / ".join(example_text(row))),
                     row["note"],
                     ", ".join(row["tags"]),
                     " / ".join(row["sources"]),
@@ -213,13 +229,18 @@ def markdown_bytes(rows):
                 f"{key}: {json.dumps(value, ensure_ascii=False)}" for key, value in front.items()
             )
             body = f"---\n{metadata}\n---\n\n# {row['word']}\n\n{row['meaning']}\n\n"
-            body += "\n\n".join(
-                re.sub(r"\{\{(.*?)\}\}", r"<u>\1</u>", value, flags=re.DOTALL)
-                for value in example_text(row)
-            )
+            body += "\n\n".join(anki_html(value) for value in example_text(row))
             body += f"\n\n{row['note']}\n"
+            if row.get("meaning_source"):
+                body += "\nNguồn nghĩa: " + row["meaning_source"] + "\n"
             archive.writestr(markdown_name(row), body)
     return output.getvalue()
+
+
+def plain_examples(value):
+    from app.nlp.furigana import strip_markup
+
+    return strip_markup(value)
 
 
 def render(rows, format, user_id):

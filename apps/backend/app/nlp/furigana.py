@@ -1,11 +1,14 @@
 import re
+from copy import deepcopy
 from functools import cache
 
 from app.nlp.normalize import kana_normalize
 from app.nlp.tokenizer import tokenize
 
 _HAN = r"一-鿿㐀-䶿豈-﫿々\U00020000-\U000323af"
-_PROTECTED = re.compile(r"{{.*?}}|[" + _HAN + r"ぁ-ヿ]+\[[ぁ-ゖァ-ヺー\s]+\]", re.DOTALL)
+_PROTECTED = re.compile(r"[" + _HAN + r"ぁ-ヿ]+\[[ぁ-ゖァ-ヺー\s]+\]", re.DOTALL)
+# Reviewed readings supplied for M4. Entry/textbook readings take precedence.
+READING_OVERRIDES = {"私": "わたし", "腹痛": "ふくつう"}
 
 
 def japanese_strings(content: list[dict]):
@@ -49,9 +52,14 @@ def _annotate(surface: str, reading: str) -> str:
     return "".join(solutions[0]) if len(solutions) == 1 else f"{surface}[{reading}]"
 
 
-def add_furigana(text: str) -> str:
+def add_furigana(text: str, readings: dict[str, str] | None = None) -> str:
+    readings = {**READING_OVERRIDES, **(readings or {})}
+
     def annotate_plain(value):
-        return "".join(_annotate(t.surface, t.reading) for t in tokenize(value))
+        return "".join(
+            _annotate(t.surface, kana_normalize(readings.get(t.surface, t.reading)))
+            for t in tokenize(value)
+        )
 
     result, start = [], 0
     for match in _PROTECTED.finditer(text):
@@ -59,6 +67,21 @@ def add_furigana(text: str) -> str:
         start = match.end()
     result.append(annotate_plain(text[start:]))
     return "".join(result)
+
+
+def content_furigana(content: list[dict], readings: dict[str, str]) -> list[dict]:
+    result = deepcopy(content)
+    for block in result:
+        if block["type"] == "example":
+            block["ja"] = add_furigana(block["ja"], readings)
+        elif block["type"] == "usage":
+            if block.get("context"):
+                block["context"] = add_furigana(block["context"], readings)
+            for variant in block.get("variants", []):
+                variant["ja"] = add_furigana(variant["ja"], readings)
+        elif block["type"] == "collocation":
+            block["items"] = [add_furigana(item, readings) for item in block["items"]]
+    return result
 
 
 def strip_markup(value: str) -> str:

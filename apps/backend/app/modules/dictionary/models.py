@@ -3,7 +3,7 @@ from sqlalchemy import ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from app.db.base import Base, Timestamp
 
 
 class Word(Base):
@@ -58,3 +58,14 @@ class Kanji(Base):
     meaning: Mapped[str] = mapped_column(default="")
     strokes: Mapped[int | None]
     jlpt_level: Mapped[str | None] = mapped_column(String(2))
+
+
+class WordEdit(Timestamp, Base):
+    __tablename__ = "word_edits"
+    __table_args__ = (Index("ix_word_edits_word_id", "word_id", "id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id", ondelete="CASCADE"))
+    field: Mapped[str]
+    old: Mapped[str]
+    new: Mapped[str]
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
