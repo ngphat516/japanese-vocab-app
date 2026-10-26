@@ -20,6 +20,7 @@ dependencies = [
     "openpyxl>=3.1",
     "sudachipy>=0.7.0",
     "sudachidict-core>=20261015",
+    "genanki>=0.13,<0.14",
 ]
 
 [dependency-groups]
@@ -49,7 +50,7 @@ source = ["app"]
 concurrency = ["thread", "greenlet"]
 
 [tool.coverage.report]
-include = ["app/modules/*/service.py", "app/nlp/*.py"]
+include = ["app/modules/*/service.py", "app/modules/notebook/exports.py", "app/nlp/*.py"]
 show_missing = true
 fail_under = 70
 

@@ -1,12 +1,14 @@
-from typing import Annotated
+import asyncio
+from typing import Annotated, Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 
 from app.common.schemas import DB, Page, Size
 from app.modules.auth.dependencies import CurrentUser
 
+from . import exports, service
 from . import schemas as s
-from . import service
 
 router = APIRouter(tags=["notebook"])
 
@@ -24,6 +26,27 @@ async def clear_history(db: DB, user: CurrentUser):
 @router.get("/saved-words/stats", response_model=dict[str, int])
 async def stats(db: DB, user: CurrentUser):
     return await service.stats(db, user)
+
+
+@router.get("/saved-words/export")
+async def export_words(
+    db: DB,
+    user: CurrentUser,
+    format: Literal["anki", "csv", "markdown"],
+    collection_id: Annotated[int | None, Query(gt=0)] = None,
+    jlpt: s.JLPT | None = None,
+    tag: Annotated[str | None, Query(max_length=100)] = None,
+):
+    rows = await exports.export_rows(db, user, collection_id=collection_id, jlpt=jlpt, tag=tag)
+    content, media_type, extension = await asyncio.to_thread(exports.render, rows, format, user.id)
+    filename = f"Sổ từ.{extension}"
+    return Response(
+        content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename=notebook.{extension}; filename*=UTF-8''{quote(filename)}"
+        },
+    )
 
 
 @router.get("/saved-words", response_model=s.SavedPage)

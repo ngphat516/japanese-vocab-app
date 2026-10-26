@@ -17,7 +17,8 @@ Ngày bắt đầu: 20/10/2026. Phạm vi: backend P1; không triển khai front
 Đã tiếp tục và kiểm chứng xong bước tối ưu search (milestone 0) ngày 20/10/2026.
 Milestone 0 đã commit tại `51e0278` (`perf(search): paginate in SQL, trigram operators`).
 Chưa hoàn thành toàn bộ P1; các tính năng P1 còn lại chưa được triển khai trong bước này.
-Milestone 1 NLP đã hoàn tất; kết quả và tài nguyên ở cuối báo cáo. Dừng trước Milestone 2.
+Milestone 1 NLP, Milestone 2 search lemma/ví dụ và Milestone 3 Sổ từ đã hoàn tất.
+Kết quả kiểm chứng ở từng mục bên dưới; dừng sau Milestone 3.
 
 ## Thay đổi search
 
@@ -453,7 +454,7 @@ Thêm `--baseline-ref c4686d6` để đo search trước M2 với cùng loader. 
   Dữ liệu cho thấy biến thiên local, chưa đủ kết luận NFR ổn định. Triển khai SRCH-09/10
   đã hoàn tất và dừng ở M2; chưa xác nhận NFR trên HTTP môi trường deploy.
 
-## Milestone 3 — Sổ từ (đang triển khai)
+## Milestone 3 — Sổ từ
 
 ### Bước 0: lemma và contract ví dụ
 
@@ -462,25 +463,96 @@ Thêm `--baseline-ref c4686d6` để đo search trước M2 với cùng loader. 
   normalized_form chỉ được thêm khi reading bằng dictionary_form; giữ tiềm năng độc lập `行ける`.
 - Migration `0004_example_lemmas` thêm mảng riêng text[] + GIN chỉ từ example/usage,
   có downgrade; save_entry/backfill tính cả hai mảng, không sửa content/search_text.
-- Quét 11.906 entry, dry-run/ghi 11.528; lần hai0. Hash nguồn trước/sau giữ nguyên
+- Quét 11.906 entry, dry-run/ghi 11.528; lần hai 0. Hash nguồn trước/sau giữ nguyên
   `9a396627773143b7e8a2f63ea4a5ff4e553b3ec4ba3a72394f7125e7c38067b1`.
 - `verification/m3_lemma_diff.md`: 10/30 câu trong mẫu M2 thay đổi; nguồn không đổi.
 - Examples trả theo entry với sentences[]; count search và total dùng cùng example_lemmas,
-  quyền và loại entry của chính từ. Giữ cap1000 + cờ total_capped, phân trang vẫn tiếp tục.
-- IMP-11 vẫn hoãn; không làm M4; không tối ưu/đo thêm tải10 đồng thời.
+  quyền và loại entry của chính từ. Giữ cap 1000 + cờ total_capped, phân trang vẫn tiếp tục.
+- IMP-11 vẫn hoãn; không làm M4; không tối ưu/đo thêm tải 10 đồng thời.
 
 ### Schema và chức năng Sổ từ
 
 - Migration `0005_notebook`: history unique user/word + index thời gian giảm dần;
   saved_words unique user/word + index created_at; collections unique user/name;
   membership PK hai cột, các FK cascade.
-- GET chi tiết từ upsert lịch sử, khóa transaction theo user rồi prune còn500 dòng;
+- GET chi tiết từ upsert lịch sử, khóa transaction theo user rồi prune còn 500 dòng;
   /search không ghi lịch sử. saved lấy bằng một truy vấn cho cả trang.
 - APIs history/saved/stats/collections/membership có kiểm tra owner, visibility hiện tại,
   nguồn public/own; filter JLPT/none, tag, textbook, collection và phân trang ổn định.
-- Tags NFKC/trim/khử trùng, tối đa20 tag/30 ký tự; stats đủ6 nhóm kể cả0.
+- Tags NFKC/trim/khử trùng, tối đa 20 tag/30 ký tự; stats đủ 6 nhóm kể cả 0.
 
-- Kiểm chứng lõi: **160 test đạt**, coverage tổng96,38%, notebook service100%; từng service/NLP ≥70%.
-  Có test giữ500 dòng/upsert, một truy vấn saved/trang, thu hồi quyền nguồn, toàn bộ endpoint
-  bắt buộc auth, migration0005/0004 downgrade→upgrade. Log `verification/m3-core-full-tests.log`,
-  XML `m3-core-tests.xml`, coverage `m3-core-coverage.log`. Schema0005 đã áp DB local sau backup.
+- Kiểm chứng lõi: **160 test đạt**, coverage tổng 96,38%, notebook service 100%; từng service/NLP ≥70%.
+  Có test giữ 500 dòng/upsert, một truy vấn saved/trang, thu hồi quyền nguồn, toàn bộ endpoint
+  bắt buộc auth, migration 0005/0004 downgrade→upgrade. Log `verification/m3-core-full-tests.log`,
+  XML `m3-core-tests.xml`, coverage `m3-core-coverage.log`. Schema 0005 đã áp DB local sau backup.
+
+### NB-06 — xuất dữ liệu
+
+- Genanki 0.13.1 khóa trong uv.lock; model 2047426001/deck 2047426002 cố định, GUID theo user/word_id. Bảy field đúng contract; JLPT và tag gốc nằm trong Notes, tag Anki dùng underscore thay whitespace. Mặt trước Expression; ví dụ dùng `{{furigana:Examples}}` để hiển thị reading có sẵn. Giữ `漢字[よみ]`, đổi từ đích `{{…}}` thành `<u>…</u>`, không media và không sinh furigana.
+- CSV UTF-8 BOM, 9 cột cố định, nhiều ví dụ nối ` / `. ZIP Markdown mỗi từ một file, frontmatter đủ word/reading/jlpt/hanviet/tags/sources; tên Windows an toàn, thêm ID tránh trùng cả cùng reading. Header filename* UTF-8 RFC5987 và rate limit 10/phút/user.
+- Nghĩa ưu tiên meaning.vi trong giáo trình của user; fallback gloss có nhãn JMdict/ngôn ngữ, hoặc nguồn hiện có cho từ tự tạo không có gloss. Tối đa 2 ví dụ từ example/usage của entry từ đích; lọc collection/JLPT/tag và kiểm tra quyền nguồn hiện tại.
+
+### Kiểm chứng cuối Milestone 3
+
+- **170/170 test PASS**, gồm toàn bộ 128 test M2 (kỳ vọng normalized forms/contract examples cập nhật theo Bước 0) và 42 case mới. Coverage service/NLP/export **97.23%**; từng service/NLP/export đều ≥70%.
+- Notebook service 100%; export và các service khác xem `verification/m3-coverage.log`. Cổng coverage bắt buộc notebook và exports.py; không hạ ngưỡng. Ruff check/format theo phạm vi CI đạt (114 file), uv sync --frozen đạt, git diff --check đạt.
+- Test mở lại APKG bằng zipfile+sqlite3 và kiểm tra cả note/card/model/deck; CSV BOM/headers; ZIP parse YAML/frontmatter, tên thiết bị Windows, hai từ cùng reading. Có kiểm tra file rỗng, source visibility, user B, collection filter, notes/tags, GUID sau sửa note và rate limit theo user.
+- Test migration upgrade→downgrade→upgrade dùng DB tạm; DB local chỉ upgrade sau backup. Số đếm ví dụ và total endpoint cùng cap 1000/capped, có test mốc 1000/1001 và loại collocation.
+- Log/XML: `verification/m3-tests.{log,xml}`, `m3-coverage.log`, `m3-ruff.log`, `m3-format.log`, `m3-sync.log`, `m3-count-cap-test.log`.
+- Backup trước thay đổi M3: `backups/milestone3/vocab-20261026-224828.dump`, **4.375.074 byte**, catalog pg_restore đọc được (`verification/m3-backup-toc.log`).
+- Hash content/search_text giữ nguyên cả trước/sau backfill và sau kiểm chứng: `9a396627773143b7e8a2f63ea4a5ff4e553b3ec4ba3a72394f7125e7c38067b1`; `verification/m3-content-{before,after,final}.json`.
+
+### NFR-17 — xuất 1.000 từ thật
+
+Mỗi định dạng 3 lượt ASGI HTTP, gồm auth+SQL+NLP+render; warmup bằng file 10 từ không tính. Dataset 1.000 từ thật từ giáo trình local user được xem. Đã mở lại cả 9 file kết quả để xác nhận đủ 1.000 note/card/row/file. Toàn bộ saved_words/collections tạm rollback, số dòng trước/sau bằng nhau: `[0, 0]`.
+
+| Định dạng | Median (s) | Max (s) | Kích thước (byte) |
+| --- | ---: | ---: | ---: |
+| Anki .apkg | 1.114 | 1.167 | 1,138,906 |
+| CSV BOM | 0.894 | 0.894 | 736,391 |
+| Markdown .zip | 0.924 | 0.930 | 478,403 |
+
+**Cả 3 định dạng đạt <10 giây trong phép đo local này.** Số đo không gồm mạng/proxy deploy. JSON: `verification/m3/resources.json`; log: `verification/m3-export-measure.log`. Script: `uv run python -m scripts.measure_m3_exports`.
+
+### Search c=1 trước/sau saved
+
+Đo cặp trên cùng DB/process, baseline search service `fa3a07b` (sau Bước 0, trước notebook), thứ tự trước/sau xen kẽ từng cặp. Mỗi query 20 cặp, size=20/page=1; 1.000 saved_words. Cả synthetic 200.000 words/400.000 senses và JMdict 323.447 words/721.391 senses đều có 12.000 entry với lemma thật. Warmup 1 request/query và examples ghi riêng, không tính. Không đo/tối ưu c=10 trong M3.
+
+| Query | Synthetic trước | Sau | Δ p95 (ms) | JMdict trước | Sau | Δ p95 (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| きんちょう | 84.31 | 84.36 | +0.05 | 89.50 | 84.51 | -4.99 |
+| kinchou | 71.15 | 74.65 | +3.50 | 111.07 | 112.63 | +1.55 |
+| 緊張 | 95.23 | 80.45 | -14.78 | 161.36 | 147.21 | -14.15 |
+| căng thẳng | 56.63 | 55.97 | -0.66 | 71.66 | 75.48 | +3.82 |
+| school | 36.19 | 38.75 | +2.57 | 136.12 | 145.89 | +9.77 |
+| い | 181.53 | 194.11 | +12.57 | 197.91 | 188.51 | -9.39 |
+| a | 17.05 | 19.71 | +2.66 | 88.02 | 83.15 | -4.87 |
+
+- **560/560 HTTP 200**, total kết quả trước/sau giống nhau cho mỗi cặp. Tăng p95 tối đa **12.57 ms synthetic**, **9.77 ms JMdict**; cả 14 trường hợp dưới 20 ms. Giá trị âm là biến thiên đo local, không kết luận tăng tốc.
+- JSON/log: `verification/m3-search-{s1,j1}.{json,log}`, warmup có đuôi `.warmup.json`. Script `scripts/bench_saved.py`; ASGI chỉ so sánh overhead, NFR-01 vẫn phải đo HTTP môi trường deploy theo DECISIONS 33.
+
+### RSS và file mẫu
+
+- RSS PID uvicorn Windows thật, một worker, đã nạp Sudachi và xử lý search có saved: **177,709,056 byte (169.48 MiB)**. M2 **168,18 MiB**; snapshot M3 dưới 512 MB, không phải peak export/deploy. Probe đã đóng; JSON `verification/m3/resources.json`.
+- Ba file mẫu **10 từ thật**, đã mở kiểm tra, nằm local trong `apps/backend/verification/m3_exports/`:
+  - `m3-sample-10.apkg` — import bằng Anki.
+  - `m3-sample-10.csv` — mở bằng Excel (UTF-8 BOM).
+  - `m3-sample-10.zip` — giải nén vào vault Obsidian.
+- Sample gồm 動かす/動く/薄い/写す… từ DB thật; giữ lỗi OCR và markup nguồn, không tạo/sửa nội dung giáo trình. `verification/m3_lemma_diff.md` chỉ có 10/30 câu đổi lemma từ mẫu M2. Backup/verification được Git-ignore; không push dữ liệu sách lên GitHub.
+
+### Tái chạy và điểm dừng
+
+```powershell
+uv sync --frozen
+uv run pytest --cov --cov-report=term-missing --cov-report=json
+uv run python scripts/check_coverage.py coverage.json
+uv run ruff check . ../../scripts
+uv run ruff format --check . ../../scripts
+uv run python -m scripts.bench_saved --output verification/m3-search-s1.json
+uv run python -m scripts.bench_saved --jmdict data/bench/jmdict-eng-3.6.2.json --output verification/m3-search-j1.json
+uv run python -m scripts.measure_m3_exports
+```
+
+Ba commit theo phạm vi: `fa3a07b` sửa NLP/count, `5d4011c` history/saved/collections, và `feat(notebook): export anki csv markdown`.
+
+**Milestone 3 hoàn tất; dừng sau Milestone 3.** IMP-11 vẫn hoãn; không triển khai furigana tự động M4, SRS hay frontend. Không thay kết luận NFR deploy bằng kết quả ASGI local.

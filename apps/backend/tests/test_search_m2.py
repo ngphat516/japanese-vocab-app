@@ -196,6 +196,9 @@ async def test_SRCH_10_count_cap_and_gin_sql(authorized, db):
         "count": 1000,
         "capped": True,
     }
+    examples = (await client.get(f"/api/v1/words/{target.id}/examples")).json()
+    assert examples["total"] == 1000 and examples["total_capped"] is True
+    assert len(examples["items"]) == 20
     sql = str(textbooks.example_entries(user, desc).limit(1001))
     assert "@>" in sql and "LIMIT" in sql
 
