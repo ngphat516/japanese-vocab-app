@@ -55,10 +55,19 @@ async def delete_lesson(lesson_id: int, db: DB, user: CurrentUser):
 
 
 @router.get("/lessons/{lesson_id}/entries")
-async def entries(lesson_id: int, db: DB, user: CurrentUser, page: Page = 1, size: Size = 20):
-    return await service.list_entries(db, user, lesson_id, page, size)
+async def entries(
+    lesson_id: int,
+    db: DB,
+    user: CurrentUser,
+    page: Page = 1,
+    size: Size = 20,
+    furigana: bool = True,
+):
+    result = await service.list_entries(db, user, lesson_id, page, size)
+    result["items"] = [service.entry_output(e, furigana) for e in result["items"]]
+    return result
 
 
 @router.get("/entries/{entry_id}", response_model=s.EntryOut)
-async def entry(entry_id: int, db: DB, user: CurrentUser):
-    return await service.get_entry(db, user, entry_id)
+async def entry(entry_id: int, db: DB, user: CurrentUser, furigana: bool = True):
+    return service.entry_output(await service.get_entry(db, user, entry_id), furigana)

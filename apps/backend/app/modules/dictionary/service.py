@@ -43,6 +43,21 @@ async def match(db, kanji, kana):
     return list((await db.scalars(statement.order_by(Word.id))).all())
 
 
+async def headword_readings(db, ids):
+    # Omit conflicting textbook readings instead of guessing among homographs.
+    rows = (
+        await db.execute(
+            select(Word.kanji, Word.kana)
+            .where(Word.id.in_(ids), Word.kanji != "")
+            .order_by(Word.id)
+        )
+    ).all()
+    variants = {}
+    for kanji, kana in rows:
+        variants.setdefault(kanji, set()).add(kana)
+    return {kanji: next(iter(values)) for kanji, values in variants.items() if len(values) == 1}
+
+
 async def get_word(db, word_id):
     word = await db.get(Word, word_id)
     if not word:

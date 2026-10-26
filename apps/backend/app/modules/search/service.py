@@ -35,7 +35,7 @@ def public_entry(entry, full=True):
     return {k: (v if full or k != "content" else None) for k, v in entry.items() if k != "word_id"}
 
 
-async def search(db, user, query, textbook_ids, jlpt, page, size):
+async def search(db, user, query, textbook_ids, jlpt, page, size, furigana=True):
     query = query.strip()
     if not query:
         raise AppError(422, "EMPTY_QUERY", "Truy vấn không được rỗng")
@@ -55,7 +55,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
         forms,
     )
     entries = await textbooks.visible_entries(
-        db, user, word_ids=[w.id for w in words], textbook_ids=textbook_ids
+        db, user, word_ids=[w.id for w in words], textbook_ids=textbook_ids, furigana=furigana
     )
     by_word = {}
     for entry in entries:
@@ -86,7 +86,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
     return result
 
 
-async def word_detail(db, user, word_id):
+async def word_detail(db, user, word_id, furigana=True):
     word = await notebook.require_word(db, user, word_id)
     await notebook.record_history(db, user, word)
     description = await dictionary.describe(db, word)
@@ -94,7 +94,10 @@ async def word_detail(db, user, word_id):
     return {
         "word": description,
         "senses": await dictionary.senses(db, word_id),
-        "entries": [public_entry(e) for e in await textbooks.visible_entries(db, user, [word_id])],
+        "entries": [
+            public_entry(e)
+            for e in await textbooks.visible_entries(db, user, [word_id], furigana=furigana)
+        ],
     }
 
 

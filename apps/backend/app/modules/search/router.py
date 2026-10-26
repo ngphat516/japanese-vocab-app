@@ -20,13 +20,14 @@ async def search(
     jlpt: Literal["N1", "N2", "N3", "N4", "N5"] | None = None,
     page: Page = 1,
     size: Size = 20,
+    furigana: bool = True,
 ):
-    return await service.search(db, user, q, textbook_ids, jlpt, page, size)
+    return await service.search(db, user, q, textbook_ids, jlpt, page, size, furigana)
 
 
 @router.get("/words/{word_id}", response_model=s.WordDetail)
-async def detail(word_id: int, db: DB, user: CurrentUser):
-    return await service.word_detail(db, user, word_id)
+async def detail(word_id: int, db: DB, user: CurrentUser, furigana: bool = True):
+    return await service.word_detail(db, user, word_id, furigana)
 
 
 @router.get("/words/{word_id}/examples", response_model=s.ExamplesResult)

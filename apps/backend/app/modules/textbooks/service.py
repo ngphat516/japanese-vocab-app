@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.exceptions import AppError
 from app.modules.auth.service import require_admin
 from app.modules.dictionary import service as dictionary
-from app.nlp.furigana import search_text, strip_markup
+from app.nlp.furigana import content_furigana, japanese_strings, search_text, strip_markup
 from app.nlp.normalize import is_vietnamese, kana_normalize
 from app.nlp.tokenizer import FORMAL_NOUNS, entry_lemmas, example_lemmas, lemmas
 
@@ -155,9 +155,36 @@ async def get_entry(db, user, entry_id):
     return entry
 
 
-async def save_entry(db, user, lesson_id, word_id, order_no, content):
-    await get_lesson(db, user, lesson_id, True)
-    await dictionary.get_word(db, word_id)
+async def textbook_readings(db, textbook_id):
+    return await dictionary.headword_readings(
+        db,
+        select(Entry.word_id)
+        .join(Lesson, Lesson.id == Entry.lesson_id)
+        .where(Lesson.textbook_id == textbook_id),
+    )
+
+
+def entry_content(entry, furigana=True):
+    return (
+        entry.content_furigana if furigana and entry.content_furigana is not None else entry.content
+    )
+
+
+def entry_output(entry, furigana=True):
+    return {
+        "id": entry.id,
+        "word_id": entry.word_id,
+        "lesson_id": entry.lesson_id,
+        "order_no": entry.order_no,
+        "content": entry_content(entry, furigana),
+        "search_text": entry.search_text,
+        "auto_furigana": entry.auto_furigana,
+    }
+
+
+async def save_entry(db, user, lesson_id, word_id, order_no, content, auto_furigana=True):
+    lesson = await get_lesson(db, user, lesson_id, True)
+    word = await dictionary.get_word(db, word_id)
     blocks = validate_content(content)
     if len(json.dumps(blocks, ensure_ascii=False).encode()) > 16000:
         raise AppError(422, "ENTRY_TOO_LARGE", "Nội dung một mục từ vượt 16 KB")
@@ -171,11 +198,22 @@ async def save_entry(db, user, lesson_id, word_id, order_no, content):
     entry.lemmas, entry.example_lemmas = await asyncio.to_thread(
         lambda: (entry_lemmas(blocks), example_lemmas(blocks))
     )
+    readings = (
+        await textbook_readings(db, lesson.textbook_id)
+        if auto_furigana and any(japanese_strings(blocks))
+        else {}
+    )
+    if word.kanji:
+        readings[word.kanji] = word.kana
+    entry.auto_furigana = auto_furigana
+    entry.content_furigana = (
+        await asyncio.to_thread(content_furigana, blocks, readings) if auto_furigana else None
+    )
     await db.flush()
     return entry
 
 
-async def visible_entries(db, user, word_ids=None, textbook_ids=None, query=None):
+async def visible_entries(db, user, word_ids=None, textbook_ids=None, query=None, furigana=True):
     stmt = (
         select(Entry, Lesson, Textbook)
         .join(Lesson, Lesson.id == Entry.lesson_id)
@@ -204,7 +242,7 @@ async def visible_entries(db, user, word_ids=None, textbook_ids=None, query=None
             "textbook": b.name,
             "lesson": l.title,
             "order_no": e.order_no,
-            "content": e.content,
+            "content": entry_content(e, furigana),
             "summary": e.search_text[:200],
         }
         for e, l, b in rows
@@ -252,7 +290,10 @@ async def notebook_entries(db, user, word_ids, *, content=False):
         Entry.order_no,
     ]
     if content:
-        columns += [Entry.content, Textbook.owner_id]
+        columns += [
+            func.coalesce(Entry.content_furigana, Entry.content).label("content"),
+            Textbook.owner_id,
+        ]
     rows = (
         (
             await db.execute(
@@ -348,7 +389,7 @@ async def word_examples(db, user, word, page, size):
     def extract():
         return [
             {
-                "sentences": list(example_sentences(entry.content, key)),
+                "sentences": list(example_sentences(entry_content(entry), key)),
                 "textbook": book.name,
                 "textbook_id": book.id,
                 "lesson": lesson.title,
