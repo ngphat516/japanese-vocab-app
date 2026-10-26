@@ -24,16 +24,20 @@ async def check(request: Request):
         return
     path = request.url.path.removeprefix("/api/v1")
     limit = (
-        60 if path == "/search" else 10 if path.startswith("/auth/") or path == "/imports" else 0
+        60
+        if path == "/search"
+        else 10
+        if path.startswith("/auth/") or path in {"/imports", "/saved-words/export"}
+        else 0
     )
     if not limit:
         return
     identity = request.client.host if request.client else "unknown"
-    if path == "/search" or path == "/imports":
+    if path in {"/search", "/imports", "/saved-words/export"}:
         credentials = request.headers.get("authorization", "")
         if credentials.lower().startswith("bearer "):
             identity = "user:" + decode(credentials[7:], "access")["sub"]
-    key = f"{'search' if limit == 60 else 'auth' if path.startswith('/auth/') else 'imports'}:{identity}"
+    key = f"{'search' if limit == 60 else 'auth' if path.startswith('/auth/') else 'export' if path == '/saved-words/export' else 'imports'}:{identity}"
     window = int(datetime.now(UTC).timestamp()) // 60
     async with Session.begin() as db:
         stmt = insert(RateBucket).values(key=key, window=window, count=1)

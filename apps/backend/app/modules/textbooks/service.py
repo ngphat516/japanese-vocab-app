@@ -10,7 +10,7 @@ from app.modules.auth.service import require_admin
 from app.modules.dictionary import service as dictionary
 from app.nlp.furigana import search_text, strip_markup
 from app.nlp.normalize import is_vietnamese, kana_normalize
-from app.nlp.tokenizer import FORMAL_NOUNS, entry_lemmas, lemmas
+from app.nlp.tokenizer import FORMAL_NOUNS, entry_lemmas, example_lemmas, lemmas
 
 from .blocks import validate_content
 from .models import Entry, Lesson, Textbook
@@ -168,7 +168,9 @@ async def save_entry(db, user, lesson_id, word_id, order_no, content):
         entry = Entry(lesson_id=lesson_id, word_id=word_id)
         db.add(entry)
     entry.order_no, entry.content, entry.search_text = order_no, blocks, search_text(blocks)
-    entry.lemmas = await asyncio.to_thread(entry_lemmas, blocks)
+    entry.lemmas, entry.example_lemmas = await asyncio.to_thread(
+        lambda: (entry_lemmas(blocks), example_lemmas(blocks))
+    )
     await db.flush()
     return entry
 
@@ -240,6 +242,33 @@ def example_key(word):
     return word["kanji"] or kana_normalize(word["kana"])
 
 
+async def notebook_entries(db, user, word_ids, *, content=False):
+    columns = [
+        Entry.word_id,
+        Textbook.id.label("textbook_id"),
+        Textbook.name.label("textbook"),
+        Lesson.id.label("lesson_id"),
+        Lesson.title.label("lesson"),
+        Entry.order_no,
+    ]
+    if content:
+        columns += [Entry.content, Textbook.owner_id]
+    rows = (
+        (
+            await db.execute(
+                select(*columns)
+                .join(Lesson, Lesson.id == Entry.lesson_id)
+                .join(Textbook, Textbook.id == Lesson.textbook_id)
+                .where(visible(user), Entry.word_id.in_(word_ids))
+                .order_by(Textbook.id, Lesson.number, Entry.order_no, Entry.id)
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(row) for row in rows]
+
+
 def example_entries(user, word):
     # Keep the GIN containment operator on the unmodified array column.
     return (
@@ -247,7 +276,9 @@ def example_entries(user, word):
         .join(Lesson, Lesson.id == Entry.lesson_id)
         .join(Textbook, Textbook.id == Lesson.textbook_id)
         .where(
-            visible(user), Entry.word_id != word["id"], Entry.lemmas.contains([example_key(word)])
+            visible(user),
+            Entry.word_id != word["id"],
+            Entry.example_lemmas.contains([example_key(word)]),
         )
     )
 
@@ -300,6 +331,8 @@ async def word_examples(db, user, word, page, size):
     key = example_key(word)
     if not key:
         return {"items": [], "total": 0, "page": page, "size": size}
+    sample = example_entries(user, word).limit(1001).subquery()
+    observed = await db.scalar(select(func.count(sample.c.id)))
     rows = (
         await db.execute(
             select(Entry, Lesson, Textbook)
@@ -307,13 +340,15 @@ async def word_examples(db, user, word, page, size):
             .join(Textbook, Textbook.id == Lesson.textbook_id)
             .where(Entry.id.in_(example_entries(user, word)))
             .order_by(Textbook.id, Lesson.number, Entry.order_no, Entry.id)
+            .offset((page - 1) * size)
+            .limit(size)
         )
     ).all()
 
     def extract():
         return [
             {
-                **sentence,
+                "sentences": list(example_sentences(entry.content, key)),
                 "textbook": book.name,
                 "textbook_id": book.id,
                 "lesson": lesson.title,
@@ -324,15 +359,19 @@ async def word_examples(db, user, word, page, size):
                 "ocr_review_required": ocr_review_required(entry.content),
             }
             for entry, lesson, book in rows
-            for sentence in example_sentences(entry.content, key)
         ]
 
-    sentences = await asyncio.to_thread(extract)
-    items = sentences[(page - 1) * size : page * size]
+    items = await asyncio.to_thread(extract)
     words = await dictionary.all_by_ids(db, {item["source_word_id"] for item in items})
     descriptions = {
         w.id: d for w, d in zip(words, await dictionary.describe_many(db, words), strict=True)
     }
     for item in items:
         item["source_word"] = descriptions[item.pop("source_word_id")]
-    return {"items": items, "total": len(sentences), "page": page, "size": size}
+    return {
+        "items": items,
+        "total": min(observed, 1000),
+        "total_capped": observed > 1000,
+        "page": page,
+        "size": size,
+    }

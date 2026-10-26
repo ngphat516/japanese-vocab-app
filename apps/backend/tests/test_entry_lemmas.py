@@ -2,6 +2,8 @@ import asyncio
 import os
 import subprocess
 
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -68,7 +70,7 @@ async def test_0003_upgrade_downgrade_upgrade(pg_url):
         async with engine.connect() as connection:
             assert (
                 await connection.scalar(text("SELECT version_num FROM alembic_version"))
-                == "0003_entry_lemmas"
+                == ScriptDirectory.from_config(Config("alembic.ini")).get_current_head()
             )
             assert (
                 await connection.scalar(

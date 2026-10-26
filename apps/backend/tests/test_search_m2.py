@@ -95,15 +95,20 @@ async def test_SRCH_10_visibility_sentence_filter_markup_ocr_and_pagination(auth
     assert items[0]["appears_in_examples"] == {"count": 1, "capped": False}
     endpoint = f"/api/v1/words/{target.id}/examples"
     result = (await client.get(endpoint, params={"size": 1})).json()
-    assert result["total"] == 3
+    assert result["total"] == 1
     first = result["items"][0]
-    assert first["ja"] == "{{かべ}}に穴をあける。"
-    assert first["vi"] == "Đục lỗ trên tường."
+    assert first["sentences"][0]["ja"] == "{{かべ}}に穴をあける。"
+    assert first["sentences"][0]["vi"] == "Đục lỗ trên tường."
     assert first["textbook_id"] == book.id and first["lesson_id"] == lesson.id
     assert first["order_no"] == 2 and first["source_word"]["id"] == source.id
     assert first["ocr_review_required"] is True
     second = (await client.get(endpoint, params={"size": 1, "page": 2})).json()
-    assert second["items"][0]["ja"] == "壁を作る"
+    assert second["items"] == []
+    assert [s["ja"] for s in first["sentences"]] == [
+        "{{かべ}}に穴をあける。",
+        "壁を作る",
+        "壁を直す",
+    ]
     assert (await client.get(endpoint, params={"size": 1, "page": 2})).json() == second
     assert (await client.get(endpoint, params={"page": 5})).json()["items"] == []
     assert (await client.get(endpoint, params={"page": 0})).status_code == 422
@@ -116,7 +121,7 @@ async def test_SRCH_10_visibility_sentence_filter_markup_ocr_and_pagination(auth
     assert (await client.get(endpoint)).json()["items"] == []
     book.visibility = "public"
     await db.flush()
-    assert (await client.get(endpoint)).json()["total"] == 3
+    assert (await client.get(endpoint)).json()["total"] == 1
 
 
 async def test_SRCH_10_kana_only_formal_and_first_ten(authorized, db):
@@ -127,7 +132,7 @@ async def test_SRCH_10_kana_only_formal_and_first_ten(authorized, db):
         "appears_in_examples"
     ]["count"] == 1
     result = (await client.get(f"/api/v1/words/{kana.id}/examples")).json()
-    assert [i["ja"] for i in result["items"]] == ["猫がいる。"]
+    assert [s["ja"] for i in result["items"] for s in i["sentences"]] == ["猫がいる。"]
     assert result["items"][0]["ocr_review_required"] is True
     formal = await dictionary.create_word(db, "", "こと")
     assert (await client.get("/api/v1/search?q=こと")).json()["items"][0][
@@ -163,6 +168,7 @@ async def test_SRCH_10_count_cap_and_gin_sql(authorized, db):
                 "content": [{"type": "example", "ja": "壁"}],
                 "search_text": "壁",
                 "lemmas": ["壁"],
+                "example_lemmas": ["壁"],
             }
             for row in lessons[:999]
         ],
@@ -182,6 +188,7 @@ async def test_SRCH_10_count_cap_and_gin_sql(authorized, db):
                 "content": [{"type": "example", "ja": "壁"}],
                 "search_text": "壁",
                 "lemmas": ["壁"],
+                "example_lemmas": ["壁"],
             }
         ],
     )
@@ -189,6 +196,9 @@ async def test_SRCH_10_count_cap_and_gin_sql(authorized, db):
         "count": 1000,
         "capped": True,
     }
+    examples = (await client.get(f"/api/v1/words/{target.id}/examples")).json()
+    assert examples["total"] == 1000 and examples["total_capped"] is True
+    assert len(examples["items"]) == 20
     sql = str(textbooks.example_entries(user, desc).limit(1001))
     assert "@>" in sql and "LIMIT" in sql
 
@@ -217,8 +227,8 @@ async def test_SRCH_10_formal_count_null_but_examples_available(authorized, db):
         "appears_in_examples"
     ] is None
     items = (await client.get(f"/api/v1/words/{formal.id}/examples")).json()["items"]
-    assert len(items) == 1 and items[0]["ja"] == "{{こと}}を決める。"
-    assert items[0]["vi"] is None and items[0]["ocr_review_required"] is False
+    assert len(items) == 1 and items[0]["sentences"][0]["ja"] == "{{こと}}を決める。"
+    assert items[0]["sentences"][0]["vi"] is None and items[0]["ocr_review_required"] is False
 
 
 async def test_SRCH_09_meaning_sources_tie_by_id(authorized, db):
@@ -238,3 +248,16 @@ async def test_SRCH_09_meaning_sources_tie_by_id(authorized, db):
         (first.id, "meaning"),
         (second.id, "meaning"),
     ]
+
+
+async def test_m3_collocation_not_counted_and_entry_total_matches(authorized, db):
+    client, _ = authorized
+    user, _book, lesson, target, _source, _entry = await example_setup(client, db)
+    other = await dictionary.create_word(db, "色", "いろ")
+    await textbooks.save_entry(
+        db, user, lesson.id, other.id, 3, [{"type": "collocation", "items": ["壁の色"]}]
+    )
+    result = (await client.get("/api/v1/search?q=壁")).json()["items"][0]
+    examples = (await client.get(f"/api/v1/words/{target.id}/examples")).json()
+    assert result["appears_in_examples"]["count"] == examples["total"] == 1
+    assert len(examples["items"][0]["sentences"]) == 3

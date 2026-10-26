@@ -12,7 +12,7 @@ from app.nlp.tokenizer import entry_lemmas, lemmas, tokenize
     [
         ("行かなかった", ["行く", "いく"]),
         ("食べました", ["食べる", "たべる"]),
-        ("緊張して", ["緊張", "きんちょう", "する", "為る"]),  # Keep する; it is a content verb.
+        ("緊張して", ["緊張", "きんちょう", "する"]),  # Keep する; it is a content verb.
         ("は、が、を、も。", []),
         ("、。 ! 123", []),
     ],
@@ -73,7 +73,6 @@ def test_entry_lemmas_cover_only_japanese_block_fields():
         "緊張",
         "きんちょう",
         "する",
-        "為る",
         "歩く",
         "あるく",
     ]
@@ -109,3 +108,30 @@ def test_m2_lemma_variants_and_auxiliary_context(source, required, excluded):
     assert required <= set(result)
     assert not excluded.intersection(result)
     assert len(result) == len(set(result))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "出てはいけない",
+        "出てもいけない",
+        "出てはならない",
+        "出てはだめ",
+        "行かなければならない",
+        "行かなくてはいけない",
+        "行かないとならない",
+    ],
+)
+def test_m3_prohibitive_auxiliaries(source):
+    result = set(lemmas(source))
+    assert not result.intersection({"いける", "なる", "成る", "だめ", "駄目"})
+    assert ("出る" if source.startswith("出") else "行く") in result
+    if source.startswith("出"):
+        assert "行く" not in result
+
+
+def test_m3_same_reading_and_independent_potential():
+    assert "行ける" in lemmas("仕事に行ける")
+    assert "行く" not in lemmas("仕事に行ける")
+    assert "壁" in lemmas("かべにあなをあける")
+    assert "為る" not in lemmas("する")

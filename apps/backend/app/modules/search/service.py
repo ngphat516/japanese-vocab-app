@@ -3,6 +3,7 @@ import json
 
 from app.core.exceptions import AppError
 from app.modules.dictionary import service as dictionary
+from app.modules.notebook import service as notebook
 from app.modules.textbooks import service as textbooks
 from app.nlp.normalize import is_vietnamese, normalize_query, query_type
 from app.nlp.tokenizer import FORMAL_NOUNS, lemmas
@@ -61,6 +62,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
         by_word.setdefault(entry["word_id"], []).append(entry)
     start = (page - 1) * size
     descriptions = await dictionary.describe_many(db, words)
+    await notebook.fill_saved(db, user, descriptions)
     counts = await textbooks.example_counts(db, user, descriptions[: max(0, 10 - start)])
     result = {
         "items": [
@@ -85,9 +87,12 @@ async def search(db, user, query, textbook_ids, jlpt, page, size):
 
 
 async def word_detail(db, user, word_id):
-    word = await dictionary.get_word(db, word_id)
+    word = await notebook.require_word(db, user, word_id)
+    await notebook.record_history(db, user, word)
+    description = await dictionary.describe(db, word)
+    await notebook.fill_saved(db, user, [description])
     return {
-        "word": await dictionary.describe(db, word),
+        "word": description,
         "senses": await dictionary.senses(db, word_id),
         "entries": [public_entry(e) for e in await textbooks.visible_entries(db, user, [word_id])],
     }
