@@ -57,9 +57,13 @@ class WordDetail(WordEntries):
     senses: list[dict]
 
 
-class ExampleItem(BaseModel):
+class ExampleSentence(BaseModel):
     ja: str
     vi: str | None
+
+
+class ExampleItem(BaseModel):
+    sentences: list[ExampleSentence]
     textbook: str
     textbook_id: int
     lesson: str
@@ -75,3 +79,4 @@ class ExamplesResult(BaseModel):
     page: int
     size: int
     total: int
+    total_capped: bool = False

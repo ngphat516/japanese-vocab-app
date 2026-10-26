@@ -76,11 +76,46 @@ def lemma_reading(form: str) -> str:
     return "".join(t.reading for t in tokenize(form))
 
 
+def prohibitive(tokens: list[Token], index: int) -> bool:
+    token = tokens[index]
+    if token.lemma not in {"いける", "行ける", "なる", "だめ", "駄目"}:
+        return False
+    if token.lemma not in {"だめ", "駄目"} and "非自立可能" not in token.pos:
+        return False
+    before = tokens[:index]
+    if not before:
+        return False
+    last = before[-1]
+    if last.pos[0] == "助詞" and last.surface in {"は", "も"}:
+        before = before[:-1]
+        if not before:
+            return False
+        last = before[-1]
+    if last.pos[:2] == ("助詞", "接続助詞") and last.surface in {
+        "て",
+        "で",
+        "ては",
+        "では",
+        "ても",
+        "でも",
+    }:
+        return True
+    return (
+        len(before) >= 2
+        and last.pos[0] == "助詞"
+        and last.surface in {"ば", "と"}
+        and before[-2].lemma == "ない"
+        and before[-2].pos[0] == "助動詞"
+    )
+
+
 def lemmas(text: str) -> list[str]:
     tokens = tokenize(text)
     result = []
     for index, token in enumerate(tokens):
         if token.pos[0] not in _CONTENT_POS or not any(c.isalpha() for c in token.lemma):
+            continue
+        if prohibitive(tokens, index):
             continue
         dependent = "非自立可能" in token.pos
         previous = tokens[index - 1] if index else None
@@ -97,10 +132,10 @@ def lemmas(text: str) -> list[str]:
             polite_request = token.lemma == "くださる" and previous.pos[0] in {"動詞", "名詞"}
             if token.lemma != "する" and (after_te or polite_request):
                 continue
-        for form in dict.fromkeys([token.lemma, token.normalized_form]):
-            if form:
-                result.append(form)
         reading = lemma_reading(token.lemma)
+        result.append(token.lemma)
+        if token.normalized_form and reading and lemma_reading(token.normalized_form) == reading:
+            result.append(token.normalized_form)
         if reading:
             result.append(reading)
     return list(dict.fromkeys(result))
@@ -113,3 +148,7 @@ def entry_lemmas(content: list[dict]) -> list[str]:
     for value in japanese_strings(content):
         result.extend(lemmas(strip_markup(value).replace("__", "")))
     return list(dict.fromkeys(result))
+
+
+def example_lemmas(content: list[dict]) -> list[str]:
+    return entry_lemmas([b for b in content if b.get("type") in {"example", "usage"}])

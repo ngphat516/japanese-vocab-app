@@ -68,7 +68,7 @@ async def test_0003_upgrade_downgrade_upgrade(pg_url):
         async with engine.connect() as connection:
             assert (
                 await connection.scalar(text("SELECT version_num FROM alembic_version"))
-                == "0003_entry_lemmas"
+                == "0004_example_lemmas"
             )
             assert (
                 await connection.scalar(

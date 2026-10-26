@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from app.nlp.normalize import kana_normalize, to_romaji
-from app.nlp.tokenizer import entry_lemmas
+from app.nlp.tokenizer import entry_lemmas, example_lemmas
 
 
 def project(path):
@@ -139,12 +139,21 @@ async def seed_examples(db):
                 json.dumps(contents[index], ensure_ascii=False),
                 ("căng thẳng " if n == 1 else "invented benchmark ") + contents[index][1]["ja"],
                 arrays[index],
+                example_lemmas(contents[index]),
             )
         )
     raw = await db.get_raw_connection()
     await raw.driver_connection.copy_records_to_table(
         "textbook_entries",
         records=records,
-        columns=["word_id", "lesson_id", "order_no", "content", "search_text", "lemmas"],
+        columns=[
+            "word_id",
+            "lesson_id",
+            "order_no",
+            "content",
+            "search_text",
+            "lemmas",
+            "example_lemmas",
+        ],
     )
     return len(records)

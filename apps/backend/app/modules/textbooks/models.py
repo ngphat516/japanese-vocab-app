@@ -48,6 +48,9 @@ class Entry(Timestamp, Base):
     lemmas: Mapped[list[str]] = mapped_column(
         ARRAY(Text), server_default=text("'{}'"), default=list
     )
+    example_lemmas: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), server_default=text("'{}'"), default=list
+    )
 
 
 Index(
@@ -57,3 +60,4 @@ Index(
 )
 
 Index("ix_entries_lemmas", Entry.lemmas, postgresql_using="gin")
+Index("ix_entries_example_lemmas", Entry.example_lemmas, postgresql_using="gin")

@@ -452,3 +452,19 @@ Thêm `--baseline-ref c4686d6` để đo search trước M2 với cùng loader. 
 - Giữ nguyên **708,47 ms** của lượt đầy đủ trong bảng; không thay bằng số đo lặp.
   Dữ liệu cho thấy biến thiên local, chưa đủ kết luận NFR ổn định. Triển khai SRCH-09/10
   đã hoàn tất và dừng ở M2; chưa xác nhận NFR trên HTTP môi trường deploy.
+
+## Milestone 3 — Sổ từ (đang triển khai)
+
+### Bước 0: lemma và contract ví dụ
+
+- Backup trước migration/backfill: `backups/milestone3/vocab-20261026-224828.dump`.
+- Lọc cấu trúc cấm/nghĩa vụ bằng POS và chuỗi token (không regex câu thô).
+  normalized_form chỉ được thêm khi reading bằng dictionary_form; giữ tiềm năng độc lập `行ける`.
+- Migration `0004_example_lemmas` thêm mảng riêng text[] + GIN chỉ từ example/usage,
+  có downgrade; save_entry/backfill tính cả hai mảng, không sửa content/search_text.
+- Quét 11.906 entry, dry-run/ghi 11.528; lần hai0. Hash nguồn trước/sau giữ nguyên
+  `9a396627773143b7e8a2f63ea4a5ff4e553b3ec4ba3a72394f7125e7c38067b1`.
+- `verification/m3_lemma_diff.md`: 10/30 câu trong mẫu M2 thay đổi; nguồn không đổi.
+- Examples trả theo entry với sentences[]; count search và total dùng cùng example_lemmas,
+  quyền và loại entry của chính từ. Giữ cap1000 + cờ total_capped, phân trang vẫn tiếp tục.
+- IMP-11 vẫn hoãn; không làm M4; không tối ưu/đo thêm tải10 đồng thời.

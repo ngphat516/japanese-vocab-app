@@ -10,7 +10,7 @@ from sqlalchemy import select, update
 
 from app.db.session import Session
 from app.modules.textbooks.models import Entry
-from app.nlp.tokenizer import entry_lemmas
+from app.nlp.tokenizer import entry_lemmas, example_lemmas
 
 
 async def backfill(sessions=Session, *, dry_run=False, batch_size=500):
@@ -19,7 +19,7 @@ async def backfill(sessions=Session, *, dry_run=False, batch_size=500):
         async with sessions() as db, db.begin():
             rows = (
                 await db.execute(
-                    select(Entry.id, Entry.content, Entry.lemmas)
+                    select(Entry.id, Entry.content, Entry.lemmas, Entry.example_lemmas)
                     .where(Entry.id > last_id)
                     .order_by(Entry.id)
                     .limit(batch_size)
@@ -28,10 +28,12 @@ async def backfill(sessions=Session, *, dry_run=False, batch_size=500):
             if not rows:
                 break
             values = await asyncio.to_thread(
-                lambda rows=rows: [entry_lemmas(row.content) for row in rows]
+                lambda rows=rows: [
+                    (entry_lemmas(row.content), example_lemmas(row.content)) for row in rows
+                ]
             )
             for row, value in zip(rows, values, strict=True):
-                if row.lemmas != value:
+                if (row.lemmas, row.example_lemmas) != value:
                     changed += 1
                     if not dry_run:
                         # Do not overwrite concurrent content edits with stale derived data.
@@ -41,8 +43,9 @@ async def backfill(sessions=Session, *, dry_run=False, batch_size=500):
                                 Entry.id == row.id,
                                 Entry.content == row.content,
                                 Entry.lemmas == row.lemmas,
+                                Entry.example_lemmas == row.example_lemmas,
                             )
-                            .values(lemmas=value)
+                            .values(lemmas=value[0], example_lemmas=value[1])
                         )
                         if result.rowcount != 1:
                             raise RuntimeError(
