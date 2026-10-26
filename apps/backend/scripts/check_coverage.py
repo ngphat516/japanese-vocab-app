@@ -29,6 +29,14 @@ def check(path):
         for name in ["auth", "dictionary", "textbooks", "imports", "search", "notebook"]
     }
     expected.add("app/modules/notebook/exports.py")
+    for name in ["app/jobs/import_job.py", "app/worker.py"]:
+        item = next((data for path, data in files.items() if path.replace("\\", "/") == name), None)
+        if item is not None:
+            value = item["summary"]["percent_covered"]
+            services.append((name, value))
+            if value < 70:
+                failures.append(f"{name}: {value:.1f}%")
+        expected.add(name)
     missing = expected - {name for name, _ in services}
     failures.extend(f"{name}: missing" for name in sorted(missing))
     if not services or not nlp or failures:

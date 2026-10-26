@@ -21,7 +21,7 @@ Script yêu cầu tài khoản admin đã tồn tại, không tự nâng quyền
 nghĩa English đúng CSV, bài gồm 50 dòng theo thứ tự nguồn; chạy lại không thêm entry trùng.
 SHA-256 từng CSV được in trong báo cáo seed. Không tải mạng trong script hoặc test.
 
-## Unihan Hán Việt (chưa duyệt để seed)
+## Unihan Hán Việt
 
 Nguồn [Unihan 17.0.0](https://www.unicode.org/Public/17.0.0/ucd/Unihan.zip), lấy riêng
 `Unihan_Readings.txt` vào `data/unihan/`; header Unicode Version 17.0.0.
@@ -35,7 +35,21 @@ uv run python -m scripts.build_hanviet_unihan data/unihan/Unihan_Readings.txt --
 
 Xuất `data/hanviet.csv`, `data/hanviet.metadata.json` và
 `verification/m4_hanviet_sample.md` (30 chữ seed20261020). Không ghi DB.
-Chỉ chạy seed_hanviet trên DB thật sau khi người dùng duyệt mẫu.
+M4 dừng ở bước duyệt; M5 đã được người dùng cho phép seed với provenance và override.
+Âm chưa duyệt vẫn hiển thị kèm hanviet_source để frontend đánh dấu, sửa dần qua PATCH /kanji.
+
+M5 trích thêm Unihan_Variants.txt từ cùng ZIP17.0.0. Chỉ tra Traditional/Semantic/Z/
+SpecializedSemanticVariant khi chữ thiếu kVietnamese; nhiều nguồn mâu thuẫn để trống.
+`hanviet_overrides.csv` gồm13 âm đã duyệt và dòng 滝 rỗng/chờ duyệt, được version-control.
+Không dùng lại script build M4 để ghi đè CSV M5 khi chưa có chủ đích.
+
+```powershell
+uv run python -m scripts.build_hanviet_m5
+uv run python -m scripts.seed_hanviet --overrides data/hanviet_overrides.csv
+```
+
+CSV M5 thêm source, metadata ghi SHA-256 cả readings/variants/overrides. Review300 chữ
+ở verification/m5_hanviet_review.md; seed giữ các sửa tay Kanji/Word có audit và chạy lại0 thay đổi.
 
 [Unicode License V3](https://www.unicode.org/license.txt), SPDX `Unicode-3.0`.
 Copyright © Unicode, Inc.; file nguồn ghi © 2025. Toàn bộ thông báo bản quyền và

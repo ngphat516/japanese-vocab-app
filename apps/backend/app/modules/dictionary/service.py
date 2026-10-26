@@ -163,6 +163,24 @@ async def match(db, kanji, kana):
     return list((await db.scalars(statement.order_by(Word.id))).all())
 
 
+async def match_many(db, spellings):
+    normalized = [(kanji, kana_normalize(kana)) for kanji, kana in spellings]
+    words = (
+        await db.scalars(
+            select(Word)
+            .where(Word.kana_norm.in_({kana for _, kana in normalized}))
+            .order_by(Word.id)
+        )
+    ).all()
+    by_reading = {}
+    for word in words:
+        by_reading.setdefault(word.kana_norm, []).append(word)
+    return [
+        [w for w in by_reading.get(kana, []) if not kanji or w.kanji == kanji]
+        for kanji, kana in normalized
+    ]
+
+
 async def headword_readings(db, ids, additional_ids=(), fallback_ids=None):
     # Omit conflicting textbook readings instead of guessing among homographs.
     preferred = or_(Word.id.in_(ids), Word.id.in_(additional_ids))

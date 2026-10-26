@@ -4,6 +4,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from app.common.schemas import DB, Page, Size
+from app.core.config import get_settings
 from app.modules.auth.dependencies import CurrentUser
 
 from . import schemas as s
@@ -33,8 +34,9 @@ async def upload(
     textbook_id: Annotated[int, Form()],
     adapter: Annotated[str, Form()],
     file: Annotated[UploadFile, File()],
+    response: Response,
 ):
-    return await service.upload(
+    job = await service.upload(
         db,
         user,
         textbook_id,
@@ -42,11 +44,14 @@ async def upload(
         file.filename or "upload",
         await file.read(5 * 1024 * 1024 + 1),
     )
+    if get_settings().import_mode == "async":
+        response.status_code = 202
+    return service.job_output(job)
 
 
 @router.get("/{job_id}")
 async def get_job(job_id: int, db: DB, user: CurrentUser):
-    return await service.get_job(db, user, job_id)
+    return service.job_output(await service.get_job(db, user, job_id))
 
 
 @router.get("/{job_id}/rows")
@@ -67,7 +72,13 @@ async def review(job_id: int, row_id: int, data: s.RowReview, db: DB, user: Curr
 
 
 @router.post("/{job_id}/commit")
-async def commit(job_id: int, db: DB, user: CurrentUser, auto_furigana: bool = True):
+async def commit(
+    job_id: int, db: DB, user: CurrentUser, response: Response, auto_furigana: bool = True
+):
+    if get_settings().import_mode == "async":
+        result = await service.request_commit(db, user, job_id, auto_furigana)
+        response.status_code = 202
+        return result
     result = await service.commit(db, user, job_id, auto_furigana=auto_furigana)
     if result["status"] == "failed":
         error = result["error"]

@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(min_length=32)
     cors_origins: list[str] = ["http://localhost:3000"]
     rate_limit_enabled: bool = True
+    import_mode: Literal["sync", "async"] = "async"
 
 
 @lru_cache
