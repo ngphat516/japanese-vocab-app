@@ -106,7 +106,7 @@ async def test_m3_export_full_flow_and_round_trip(imported, db, tmp_path):
             assert fields[5].startswith("JLPT: N3")
             assert str(ANKI_MODEL_ID) in models and str(ANKI_DECK_ID) in decks
             assert [f["name"] for f in models[str(ANKI_MODEL_ID)]["flds"]] == ANKI_FIELDS
-            assert "{{furigana:Examples}}" in models[str(ANKI_MODEL_ID)]["tmpls"][0]["afmt"]
+            assert "{{furigana:" not in models[str(ANKI_MODEL_ID)]["tmpls"][0]["afmt"]
         elif format == "csv":
             assert response.content.startswith(codecs.BOM_UTF8)
             reader = csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")))
@@ -175,7 +175,7 @@ async def test_m3_export_jmdict_fallback_safe_names_and_csv_cells(authorized, se
     row = next(iter(csv.DictReader(io.StringIO(csv_response.content.decode("utf-8-sig")))))
     assert (
         row["Notes"].startswith("'=")
-        and "JMdict (" in row["Meaning"]
+        and "JMdict (" in row["MeaningSource"]
         and "tension" in row["Meaning"]
     )
     original = {
@@ -207,7 +207,7 @@ async def test_m3_export_jmdict_fallback_safe_names_and_csv_cells(authorized, se
 
     original["examples"] = [{"ja": "{{橋[はし]}}を渡る。", "vi": "Qua cầu."}]
     fields = read_apkg(anki_bytes([original], 1), tmp_path)[0][0][1].split("\x1f")
-    assert "<u>橋[はし]</u>" in fields[4] and "{{" not in fields[4]
+    assert "<u><ruby>橋<rt>はし</rt></ruby></u>" in fields[4] and "{{" not in fields[4]
     guid = read_apkg(anki_bytes([original], 1), tmp_path)[0][0][0]
     original["note"] = "Changed note"
     assert read_apkg(anki_bytes([original], 1), tmp_path)[0][0][0] == guid
