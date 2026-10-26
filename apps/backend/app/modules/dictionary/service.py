@@ -134,6 +134,48 @@ async def all_by_ids(db, ids):
     return list((await db.scalars(select(Word).where(Word.id.in_(ids)))).all())
 
 
+def word_id_equals(word_id):
+    return Word.id == word_id
+
+
+def readable_ids(entry_ids, jlpt=None, *, require_entry=False):
+    stmt = select(Word.id).where(
+        Word.id.in_(entry_ids)
+        if require_entry
+        else or_(Word.jmdict_id.is_not(None), Word.id.in_(entry_ids))
+    )
+    if jlpt:
+        stmt = stmt.where(Word.jlpt_level.is_(None) if jlpt == "none" else Word.jlpt_level == jlpt)
+    return stmt
+
+
+async def level_counts(db, word_ids):
+    rows = (
+        await db.execute(
+            select(Word.jlpt_level, func.count())
+            .where(Word.id.in_(word_ids))
+            .group_by(Word.jlpt_level)
+        )
+    ).all()
+    result = dict.fromkeys(["N1", "N2", "N3", "N4", "N5", "none"], 0)
+    result.update({level or "none": count for level, count in rows})
+    return result
+
+
+async def senses_many(db, word_ids):
+    result = {}
+    rows = (
+        await db.scalars(
+            select(WordSense)
+            .where(WordSense.word_id.in_(word_ids))
+            .order_by(WordSense.word_id, WordSense.order, WordSense.id)
+        )
+    ).all()
+    for row in rows:
+        result.setdefault(row.word_id, []).append({"lang": row.lang, "gloss": row.gloss})
+    return result
+
+
 def substring_condition(column, query):
     escaped = query.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
     pattern = "%" + escaped + "%"

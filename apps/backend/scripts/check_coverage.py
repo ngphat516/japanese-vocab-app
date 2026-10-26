@@ -26,7 +26,7 @@ def check(path):
     failures = [f"{name}: {value:.1f}%" for name, value in services if value < 70]
     expected = {
         f"app/modules/{name}/service.py"
-        for name in ["auth", "dictionary", "textbooks", "imports", "search"]
+        for name in ["auth", "dictionary", "textbooks", "imports", "search", "notebook"]
     }
     missing = expected - {name for name, _ in services}
     failures.extend(f"{name}: missing" for name in sorted(missing))

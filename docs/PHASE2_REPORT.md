@@ -468,3 +468,19 @@ Thêm `--baseline-ref c4686d6` để đo search trước M2 với cùng loader. 
 - Examples trả theo entry với sentences[]; count search và total dùng cùng example_lemmas,
   quyền và loại entry của chính từ. Giữ cap1000 + cờ total_capped, phân trang vẫn tiếp tục.
 - IMP-11 vẫn hoãn; không làm M4; không tối ưu/đo thêm tải10 đồng thời.
+
+### Schema và chức năng Sổ từ
+
+- Migration `0005_notebook`: history unique user/word + index thời gian giảm dần;
+  saved_words unique user/word + index created_at; collections unique user/name;
+  membership PK hai cột, các FK cascade.
+- GET chi tiết từ upsert lịch sử, khóa transaction theo user rồi prune còn500 dòng;
+  /search không ghi lịch sử. saved lấy bằng một truy vấn cho cả trang.
+- APIs history/saved/stats/collections/membership có kiểm tra owner, visibility hiện tại,
+  nguồn public/own; filter JLPT/none, tag, textbook, collection và phân trang ổn định.
+- Tags NFKC/trim/khử trùng, tối đa20 tag/30 ký tự; stats đủ6 nhóm kể cả0.
+
+- Kiểm chứng lõi: **160 test đạt**, coverage tổng96,38%, notebook service100%; từng service/NLP ≥70%.
+  Có test giữ500 dòng/upsert, một truy vấn saved/trang, thu hồi quyền nguồn, toàn bộ endpoint
+  bắt buộc auth, migration0005/0004 downgrade→upgrade. Log `verification/m3-core-full-tests.log`,
+  XML `m3-core-tests.xml`, coverage `m3-core-coverage.log`. Schema0005 đã áp DB local sau backup.

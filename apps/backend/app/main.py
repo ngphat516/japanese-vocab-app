@@ -18,6 +18,7 @@ from app.core.exceptions import AppError
 from app.core.rate_limit import check
 from app.modules.auth.router import router as auth
 from app.modules.imports.router import router as imports
+from app.modules.notebook.router import router as notebook
 from app.modules.search.router import router as search
 from app.modules.textbooks.router import router as textbooks
 
@@ -101,7 +102,7 @@ async def request_log(request: Request, call_next):
     return response
 
 
-for router in [auth, textbooks, imports, search]:
+for router in [auth, textbooks, imports, search, notebook]:
     app.include_router(router, prefix="/api/v1", dependencies=[Depends(check)])
 
 

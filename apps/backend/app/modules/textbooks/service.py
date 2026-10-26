@@ -242,6 +242,33 @@ def example_key(word):
     return word["kanji"] or kana_normalize(word["kana"])
 
 
+async def notebook_entries(db, user, word_ids, *, content=False):
+    columns = [
+        Entry.word_id,
+        Textbook.id.label("textbook_id"),
+        Textbook.name.label("textbook"),
+        Lesson.id.label("lesson_id"),
+        Lesson.title.label("lesson"),
+        Entry.order_no,
+    ]
+    if content:
+        columns += [Entry.content, Textbook.owner_id]
+    rows = (
+        (
+            await db.execute(
+                select(*columns)
+                .join(Lesson, Lesson.id == Entry.lesson_id)
+                .join(Textbook, Textbook.id == Lesson.textbook_id)
+                .where(visible(user), Entry.word_id.in_(word_ids))
+                .order_by(Textbook.id, Lesson.number, Entry.order_no, Entry.id)
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(row) for row in rows]
+
+
 def example_entries(user, word):
     # Keep the GIN containment operator on the unmodified array column.
     return (
