@@ -14,8 +14,8 @@ async def test_SRCH_01_normalization_full_flow(imported, query):
     assert item["word"]["hanviet"] == "KHẨN TRƯƠNG"
     assert item["word"]["jlpt_level"] == "N3"
     assert item["word"]["kanji_breakdown"] == [
-        {"char": "緊", "hanviet": "KHẨN"},
-        {"char": "張", "hanviet": "TRƯƠNG"},
+        {"char": "緊", "hanviet": "KHẨN", "hanviet_source": None},
+        {"char": "張", "hanviet": "TRƯƠNG", "hanviet_source": None},
     ]
     assert len(item["entries"][0]["content"]) == 7
 

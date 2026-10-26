@@ -1,5 +1,6 @@
 """Read-only M4 furigana sample from the exact reviewed M2 sentence selection."""
 
+import argparse
 import asyncio
 import re
 from pathlib import Path
@@ -11,7 +12,7 @@ from app.modules.textbooks.service import textbook_readings
 from app.nlp.furigana import add_furigana
 
 
-async def sample():
+async def sample(output=Path("verification/m4_furigana_sample.md")):
     source = Path("verification/m2_lemma_sample.md").read_text(encoding="utf-8")
     lines = [
         "# M4 furigana — MANUAL",
@@ -44,9 +45,11 @@ async def sample():
                 "",
             ]
     await engine.dispose()
-    Path("verification/m4_furigana_sample.md").write_text("\n".join(lines), encoding="utf-8")
+    output.write_text("\n".join(lines), encoding="utf-8")
     print("30 reviewed sentences exported")
 
 
 if __name__ == "__main__":
-    asyncio.run(sample())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=Path("verification/m4_furigana_sample.md"))
+    asyncio.run(sample(parser.parse_args().output))

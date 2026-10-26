@@ -1,6 +1,6 @@
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import ForeignKey, Index, String, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Timestamp
@@ -55,6 +55,7 @@ class Kanji(Base):
     __tablename__ = "kanji"
     char: Mapped[str] = mapped_column(String(1), primary_key=True)
     hanviet: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    hanviet_source: Mapped[str | None]
     meaning: Mapped[str] = mapped_column(default="")
     strokes: Mapped[int | None]
     jlpt_level: Mapped[str | None] = mapped_column(String(2))
@@ -68,4 +69,15 @@ class WordEdit(Timestamp, Base):
     field: Mapped[str]
     old: Mapped[str]
     new: Mapped[str]
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class KanjiEdit(Timestamp, Base):
+    __tablename__ = "kanji_edits"
+    __table_args__ = (Index("ix_kanji_edits_char", "char", "id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    char: Mapped[str] = mapped_column(ForeignKey("kanji.char"))
+    field: Mapped[str]
+    old: Mapped[dict] = mapped_column(JSONB)
+    new: Mapped[dict] = mapped_column(JSONB)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

@@ -8,6 +8,7 @@ htmlcov/
 /apps/backend/data/*
 !/apps/backend/data/.gitkeep
 !/apps/backend/data/README.md
+!/apps/backend/data/hanviet_overrides.csv
 node_modules/
 .next/
 dist/

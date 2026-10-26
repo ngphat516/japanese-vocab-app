@@ -11,6 +11,68 @@ import unicodedata
 from pathlib import Path
 
 HAN = re.compile(r"[一-鿿㐀-䶿豈-﫿\U00020000-\U000323af]")
+VARIANT_FIELDS = {
+    "kTraditionalVariant",
+    "kSemanticVariant",
+    "kZVariant",
+    "kSpecializedSemanticVariant",
+}
+
+
+def parse_variants(path):
+    graph = {}
+    for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        code, field, value = line.split("\t", 2)
+        if field in VARIANT_FIELDS:
+            char = chr(int(code.removeprefix("U+"), 16))
+            graph.setdefault(char, set()).update(
+                chr(int(v, 16)) for v in re.findall(r"U\+([0-9A-Fa-f]+)", value)
+            )
+    return graph
+
+
+def with_variants(data, graph):
+    result = {char: (values, "unihan") for char, values in data.items()}
+    for char in sorted(graph):
+        if char in result:
+            continue
+        pending, seen, found = list(graph[char]), {char}, {}
+        ambiguous = False
+        while pending:
+            variant = pending.pop()
+            if variant in seen:
+                continue
+            seen.add(variant)
+            if variant in data:
+                values = data[variant]
+                ambiguous |= len(values) != 1
+                found[variant] = tuple(values)
+            else:
+                pending.extend(graph.get(variant, []))
+        if found and not ambiguous and len(set(found.values())) == 1:
+            source = min(found)
+            result[char] = (list(found[source]), f"unihan_variant:U+{ord(source):04X}")
+    return result
+
+
+def apply_overrides(data, path):
+    result = dict(data)
+    if path is not None:
+        with Path(path).open(encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                if not HAN.fullmatch(row["kanji"]):
+                    raise ValueError("Override requires one kanji")
+                values = list(
+                    dict.fromkeys(
+                        unicodedata.normalize("NFC", r.strip()).upper()
+                        for r in row["hanviet"].split("|")
+                        if r.strip()
+                    )
+                )
+                result[row["kanji"]] = (values, "override")
+    return result
 
 
 def parse(path):
