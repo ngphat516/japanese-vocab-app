@@ -1,1 +1,6 @@
-"""Reserved for this module; only P0 is implemented."""
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class WordPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    hanviet: str = Field(max_length=500)

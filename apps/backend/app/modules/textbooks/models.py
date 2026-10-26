@@ -44,6 +44,7 @@ class Entry(Timestamp, Base):
     lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"))
     order_no: Mapped[int]
     content: Mapped[list] = mapped_column(JSONB)
+    version: Mapped[int] = mapped_column(default=1, server_default=text("1"))
     content_furigana: Mapped[list | None] = mapped_column(JSONB(none_as_null=True))
     auto_furigana: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
     search_text: Mapped[str]

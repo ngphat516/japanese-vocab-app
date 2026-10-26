@@ -164,6 +164,7 @@ async def commit(db, user, job_id, auto_furigana=True):
     try:
         async with db.begin_nested():
             job.status = "committing"
+            prepared = []
             for row in rows:
                 if row.match_status == "skipped":
                     continue
@@ -178,8 +179,24 @@ async def commit(db, user, job_id, auto_furigana=True):
                         else (await dictionary.create_word(db, row.kanji, row.kana)).id
                     )
                 lesson = await textbooks.ensure_lesson(db, user, job.textbook_id, row.lesson_no)
+                prepared.append((lesson.id, word_id, row.order_no, blocks))
+            readings = (
+                await textbooks.textbook_readings(
+                    db, job.textbook_id, [item[1] for item in prepared]
+                )
+                if auto_furigana
+                else {}
+            )
+            for lesson_id, word_id, order_no, blocks in prepared:
                 await textbooks.save_entry(
-                    db, user, lesson.id, word_id, row.order_no, blocks, auto_furigana=auto_furigana
+                    db,
+                    user,
+                    lesson_id,
+                    word_id,
+                    order_no,
+                    blocks,
+                    auto_furigana=auto_furigana,
+                    readings=readings,
                 )
             job.status = "done"
             await db.flush()

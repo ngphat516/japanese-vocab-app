@@ -71,3 +71,18 @@ async def entries(
 @router.get("/entries/{entry_id}", response_model=s.EntryOut)
 async def entry(entry_id: int, db: DB, user: CurrentUser, furigana: bool = True):
     return service.entry_output(await service.get_entry(db, user, entry_id), furigana)
+
+
+@router.post("/lessons/{lesson_id}/entries", response_model=s.EntryOut, status_code=201)
+async def create_entry(lesson_id: int, data: s.EntryCreate, db: DB, user: CurrentUser):
+    return await service.create_entry(db, user, lesson_id, data)
+
+
+@router.patch("/entries/{entry_id}", response_model=s.EntryOut)
+async def patch_entry(entry_id: int, data: s.EntryPatch, db: DB, user: CurrentUser):
+    return await service.patch_entry(db, user, entry_id, data)
+
+
+@router.delete("/entries/{entry_id}")
+async def delete_entry(entry_id: int, db: DB, user: CurrentUser):
+    return await service.delete_entry(db, user, entry_id)

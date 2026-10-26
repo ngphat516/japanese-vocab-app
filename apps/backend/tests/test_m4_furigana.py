@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -70,6 +72,39 @@ async def test_import_auto_furigana_off(authorized, seeded, db):
     assert response.status_code == 200, response.text
     entries = (await db.scalars(select(Entry))).all()
     assert entries and all(not e.auto_furigana and e.content_furigana is None for e in entries)
+
+
+async def test_import_readings_include_later_rows(authorized, db):
+    client, _ = authorized
+    book = (await client.post("/api/v1/textbooks", json={"name": "Future headword"})).json()
+    payload = {
+        "rows": [
+            {
+                "kanji": "検証",
+                "kana": "けんしょう",
+                "lesson_no": 1,
+                "order_no": 1,
+                "content": [{"type": "example", "ja": "私は。"}],
+            },
+            {
+                "kanji": "私",
+                "kana": "わたくし",
+                "lesson_no": 1,
+                "order_no": 2,
+                "content": [{"type": "meaning", "en": "I"}],
+            },
+        ]
+    }
+    result = await client.post(
+        "/api/v1/imports",
+        data={"textbook_id": str(book["id"]), "adapter": "normalized_json"},
+        files={"file": ("rows.json", json.dumps(payload).encode(), "application/json")},
+    )
+    assert result.status_code == 201, result.text
+    job_id = result.json()["id"]
+    assert (await client.post(f"/api/v1/imports/{job_id}/commit")).json()["status"] == "done"
+    first = await db.scalar(select(Entry).where(Entry.order_no == 1))
+    assert first.content_furigana[0]["ja"] == "私[わたくし]は。"
 
 
 async def test_furigana_save_api_original_and_backfill(imported, db):

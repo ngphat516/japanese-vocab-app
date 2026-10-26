@@ -12,7 +12,54 @@ from app.core.exceptions import AppError
 from app.nlp.kanji import breakdown
 from app.nlp.normalize import is_vietnamese, kana_normalize, to_romaji
 
-from .models import Kanji, Word, WordSense
+from .models import Kanji, Word, WordEdit, WordSense
+
+
+async def patch_hanviet(db, user, word_id, value):
+    from app.modules.auth.service import require_admin
+
+    require_admin(user)
+    word = await db.scalar(select(Word).where(Word.id == word_id).with_for_update())
+    if word is None:
+        raise AppError(404, "WORD_NOT_FOUND", "Không tìm thấy từ")
+    if word.hanviet != value:
+        db.add(
+            WordEdit(word_id=word.id, field="hanviet", old=word.hanviet, new=value, user_id=user.id)
+        )
+        word.hanviet = value
+        await db.flush()
+    return await describe(db, word)
+
+
+async def kanji_detail(db, user, char, page, size):
+    import re
+
+    from app.modules.textbooks.service import visible_word_ids
+
+    if not re.fullmatch(r"[一-鿿㐀-䶿豈-﫿\U00020000-\U000323af]", char):
+        raise AppError(422, "INVALID_KANJI", "Cần một chữ Hán")
+    item = await db.get(Kanji, char)
+    if item is None:
+        raise AppError(404, "KANJI_NOT_FOUND", "Không tìm thấy chữ Hán")
+    query = select(Word).where(
+        Word.kanji.contains(char),
+        or_(Word.jmdict_id.is_not(None), Word.id.in_(visible_word_ids(user))),
+    )
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    words = (await db.scalars(query.order_by(Word.id).offset((page - 1) * size).limit(size))).all()
+    return {
+        "char": char,
+        "meaning": item.meaning,
+        "strokes": item.strokes,
+        "hanviet": item.hanviet,
+        "jlpt_level": item.jlpt_level,
+        "words": {
+            "items": await describe_many(db, words),
+            "total": total,
+            "page": page,
+            "size": size,
+        },
+    }
 
 
 async def kanji_breakdown(db, text):
@@ -43,12 +90,12 @@ async def match(db, kanji, kana):
     return list((await db.scalars(statement.order_by(Word.id))).all())
 
 
-async def headword_readings(db, ids):
+async def headword_readings(db, ids, additional_ids=()):
     # Omit conflicting textbook readings instead of guessing among homographs.
     rows = (
         await db.execute(
             select(Word.kanji, Word.kana)
-            .where(Word.id.in_(ids), Word.kanji != "")
+            .where(or_(Word.id.in_(ids), Word.id.in_(additional_ids)), Word.kanji != "")
             .order_by(Word.id)
         )
     ).all()
