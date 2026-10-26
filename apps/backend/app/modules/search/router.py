@@ -27,3 +27,8 @@ async def search(
 @router.get("/words/{word_id}", response_model=s.WordDetail)
 async def detail(word_id: int, db: DB, user: CurrentUser):
     return await service.word_detail(db, user, word_id)
+
+
+@router.get("/words/{word_id}/examples", response_model=s.ExamplesResult)
+async def examples(word_id: int, db: DB, user: CurrentUser, page: Page = 1, size: Size = 20):
+    return await service.word_examples(db, user, word_id, page, size)

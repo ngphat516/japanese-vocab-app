@@ -122,7 +122,7 @@ search chỉ đọc dữ liệu; mọi thao tác ghi đi qua dictionary, textboo
 | kanji | dictionary | char (PK), hanviet (text[]), meaning, strokes, jlpt_level | Từ Kanjidic + bảng Hán Việt; chữ nhiều âm lưu mảng (楽 → LẠC, NHẠC) |
 | textbooks | textbooks | id, name, publisher, level, edition, visibility, owner_id, license, source_url, created_at | visibility: private / public; edition phân biệt bản cũ và 改訂版 |
 | lessons | textbooks | id, textbook_id, number, title | Unique (textbook_id, number); Mimikara: một unit là một lesson |
-| textbook_entries | textbooks | id, word_id, lesson_id, order_no, content (jsonb), search_text, created_at | Unique (word_id, lesson_id); order_no = số thứ tự trong sách (357); content = danh sách block (mục 4.5) |
+| textbook_entries | textbooks | id, word_id, lesson_id, order_no, content (jsonb), search_text, lemmas (text[]), created_at | Unique (word_id, lesson_id); order_no = số thứ tự trong sách (357); content = danh sách block (mục 4.5); lemmas có GIN và lưu riêng summary |
 | import_jobs | imports | id, user_id, textbook_id, adapter, file_key, status, total, matched, ambiguous, failed, error, created_at | adapter: mimikara, csv_template, anki_apkg, free_text |
 | import_rows | imports | id, job_id, row_no, raw (jsonb), kanji, kana, lesson_no, order_no, content (jsonb), match_status, candidate_word_ids, chosen_word_id | Bảng staging; content đã map sang block |
 | search_history | notebook | id, user_id, word_id, query, searched_at | Lưu khi user mở chi tiết một từ; giữ 500 dòng gần nhất mỗi user |
@@ -156,7 +156,7 @@ search_history(user_id, searched_at desc), saved_words(user_id, created_at desc)
 
 kana_norm luôn là hiragana, đã bỏ khoảng trắng và ký tự đặc biệt; được sinh trong service, không nhận từ client.
 
-search_text được sinh lại mỗi khi content thay đổi: gộp text của mọi block, bỏ cú pháp furigana và gạch chân, thêm dạng từ điển (lemma) của các từ trong câu ví dụ.
+search_text được sinh lại mỗi khi content thay đổi: gộp text của mọi block, bỏ cú pháp furigana và gạch chân. Lemma lưu riêng trong textbook_entries.lemmas (text[] + GIN), không nối vào search_text vì trường này dùng làm summary. Theo quyết định Milestone 1, search dùng lemma ở Milestone 2.
 
 words.hanviet sinh từ bảng kanji khi seed hoặc tạo từ mới; chữ nhiều âm lấy âm đầu tiên, admin sửa tay được.
 
@@ -359,7 +359,7 @@ Các chỉ tiêu dưới đây áp dụng cho dữ liệu cỡ JMdict (khoảng 
 
 | Mã | Nhóm | Yêu cầu |
 | --- | --- | --- |
-| NFR-01 | Hiệu năng | /search có p95 dưới 300 ms khi không dùng semantic search, dưới 800 ms khi có |
+| NFR-01 | Hiệu năng | /search không semantic có p95 < 300 ms khi tuần tự và < 600 ms ở 10 request đồng thời, đo bằng uvicorn qua HTTP thật trên môi trường deploy; ASGITransport chỉ dùng để so sánh trước/sau |
 | NFR-02 | Hiệu năng | Import 1.000 dòng xong bước matching trong dưới 30 giây |
 | NFR-03 | Tài nguyên | API chạy được với 512 MB RAM khi đã nạp Sudachi bản core |
 | NFR-04 | Bảo mật | Mật khẩu băm Argon2/bcrypt; JWT ký bằng secret lấy từ biến môi trường |

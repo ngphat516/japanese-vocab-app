@@ -137,6 +137,17 @@ Canonical dictionary words dùng chung; user khác vẫn có thể thấy từ c
 nội dung private. Truy vấn nghĩa không được tìm xuyên vào nội dung private của người khác.
 P0 chưa có lemmatization, furigana tự sinh, semantic search, Sổ từ hoặc SRS.
 
+Phase 2 Milestone 1 đã thêm `nlp.tokenizer.tokenize/lemmas` (Sudachi core, SplitMode C)
+và `nlp.furigana.add_furigana`. Tokenizer nạp lười, có khóa cho các lời gọi từ thread.
+`save_entry` lưu `lemmas` riêng (migration 0003), giữ nguyên search_text/summary.
+Search chưa dùng lemma; furigana chưa tự áp vào import/entry.
+
+Sau backup, chạy `uv run alembic upgrade head`, rồi
+`uv run python -m scripts.backfill_lemmas --dry-run` để xem số entry sẽ đổi và
+`uv run python -m scripts.backfill_lemmas` để ghi lemma theo lô500. Chạy lại không
+đổi kết quả. `uv run python -m scripts.measure_m1` xuất 30 mẫu MANUAL, đo NLP cho 1.000 câu
+và RSS uvicorn; script đọc ví dụ từ DB local, không sửa nội dung nguồn.
+
 ## Test và chất lượng
 
 Docker engine phải truy cập được từ terminal chạy test. Bộ integration tự tạo container
@@ -164,7 +175,15 @@ Rate limit theo phút được lưu Postgres để chia sẻ giữa process: aut
 upload imports 10/phút/user, search 60/phút/user. Không tin X-Forwarded-For từ client.
 Nếu deploy sau proxy cần cấu hình trusted proxy chính xác. JSON log có request id,
 không ghi token/password; gzip bật cho response từ 1 KB. Search vượt 200 KB trả 422
-yêu cầu giảm size/lọc textbook. Chưa benchmark 200.000 từ hoặc RAM 512 MB.
+yêu cầu giảm size/lọc textbook. Benchmark local trên 200.000 từ đạt p95 75,4–167,9 ms
+cho 7 truy vấn tại Milestone 0. Sau rà soát trước Milestone 1, có thêm benchmark
+JMdict đầy đủ và 10 request đồng thời; tải đồng thời còn ca vượt 300 ms.
+Xem PHASE2_REPORT để có số đo mới nhất; chưa xác nhận trên hosting free hoặc RAM 512 MB.
+
+Search giới hạn total tối đa 1.000; total_capped=true nghĩa là còn hơn 1.000 kết quả,
+vẫn có thể phân trang tiếp. Latin 1–2 ký tự chỉ tìm đầu trường nghĩa (không phân biệt
+hoa thường), đồng thời vẫn thử chuyển romaji sang kana. Migration 0002 thêm index
+prefix nghĩa; luôn chạy Alembic trước khi dùng phiên bản này.
 
 Backup: `powershell -File ../../scripts/backup.ps1` tạo pg_dump custom-format trong backups/.
 Operator phải cấu hình Windows Task Scheduler hoặc cron chạy hằng ngày, retention và
@@ -177,8 +196,20 @@ production để kiểm thử. Schema chỉ thay đổi bằng Alembic migration
 95,67%, từng service vượt 70%; Ruff check và format sạch. Docker Compose đã build/chạy,
 Alembic ở head, /health và /docs trả 200. Chi tiết từng mã P0 trong REPORT.
 
+Lần tiếp tục ngày 20/10/2026: 78 test đạt, coverage service/NLP 93,48%, từng service
+vượt 70%; Ruff sạch. Đã tối ưu phân trang search trong SQL và kiểm chứng 140/140
+request benchmark trả 200. Xem [báo cáo giai đoạn 2](../../docs/PHASE2_REPORT.md).
+
+Rà soát trước Milestone 1: 84 test đạt, coverage 95,73% (dictionary 97,7%), Ruff sạch.
+1.680/1.680 request benchmark thành công trên synthetic/JMdict, tuần tự/10 đồng thời;
+chưa đạt p95 <300 ms cho toàn bộ truy vấn dưới tải đồng thời. IMP-11 import Anki
+hoãn khỏi Phase 2.
+
+Milestone 1: 105 test đạt trên Windows và Linux, coverage 96,34% (NLP 99,3%).
+Chi tiết backup, backfill và tài nguyên trong [PHASE2_REPORT](../../docs/PHASE2_REPORT.md).
+
 Đã chuyển PDF Mimikara và Shinkanzen người dùng cung cấp, đối chiếu từ/cách đọc với
 JMdict và import vào textbook private trong DB local. Xem [báo cáo dữ liệu](../../docs/PDF_IMPORT_REPORT.md)
 và thư mục `data/pdf_imports/` (được Git bỏ qua). Các mục OCR cần rà soát với bản gốc;
-nguồn Hán Việt có license, dataset JLPT thật và benchmark 200.000 từ vẫn còn thiếu.
+nguồn Hán Việt có license, dataset JLPT thật và benchmark trên hosting vẫn còn thiếu.
 Không có frontend trong project này.

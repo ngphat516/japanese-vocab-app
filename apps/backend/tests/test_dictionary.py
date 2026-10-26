@@ -61,3 +61,26 @@ async def test_DICT_07_breakdown(seeded):
     assert await s.kanji_breakdown(seeded, "ゆるむ") == []
     word = (await s.match(seeded, "緊張", "きんちょう"))[0]
     assert word.hanviet == "KHẨN TRƯƠNG"
+
+
+async def test_legacy_search_candidates_ranking_filters_and_meaning(db):
+    # Cover the original P0 read service used to reproduce baseline benchmarks.
+    meaning = await s.create_word(db, "意味", "いみ", jlpt_level="N3")
+    prefix = await s.create_word(db, "緊張感", "きんちょうかん", jlpt_level="N3")
+    exact = await s.create_word(db, "緊張", "きんちょう", jlpt_level="N3")
+    excluded = await s.create_word(db, "緊張外", "きんちょうがい", jlpt_level="N2")
+    db.add(WordSense(word_id=meaning.id, lang="en", gloss="緊張", order=0))
+    await db.flush()
+    assert [w.id for w in await s.search_candidates(db, "緊張", "きんちょう", "kanji", None)] == [
+        exact.id,
+        prefix.id,
+        excluded.id,
+        meaning.id,
+    ]
+    assert [w.id for w in await s.search_candidates(db, "緊張", "きんちょう", "kanji", "N3")] == [
+        exact.id,
+        prefix.id,
+        meaning.id,
+    ]
+    assert await s.search_candidates(db, "unmatched", "unmatched", "latin", None) == []
+    assert {w.id for w in await s.all_by_ids(db, [exact.id, meaning.id])} == {exact.id, meaning.id}

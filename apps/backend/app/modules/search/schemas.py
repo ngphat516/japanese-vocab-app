@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 from app.modules.textbooks.blocks import Block
@@ -28,9 +30,19 @@ class EntryResult(BaseModel):
     summary: str
 
 
-class SearchItem(BaseModel):
+class WordEntries(BaseModel):
     word: WordSummary
     entries: list[EntryResult]
+
+
+class ExampleCount(BaseModel):
+    count: int
+    capped: bool
+
+
+class SearchItem(WordEntries):
+    matched_by: Literal["exact", "lemma", "prefix", "meaning"] = "meaning"
+    appears_in_examples: ExampleCount | None = None
 
 
 class SearchResult(BaseModel):
@@ -38,7 +50,28 @@ class SearchResult(BaseModel):
     page: int
     size: int
     total: int
+    total_capped: bool = False
 
 
-class WordDetail(SearchItem):
+class WordDetail(WordEntries):
     senses: list[dict]
+
+
+class ExampleItem(BaseModel):
+    ja: str
+    vi: str | None
+    textbook: str
+    textbook_id: int
+    lesson: str
+    lesson_id: int
+    order_no: int
+    entry_id: int
+    source_word: WordSummary
+    ocr_review_required: bool
+
+
+class ExamplesResult(BaseModel):
+    items: list[ExampleItem]
+    page: int
+    size: int
+    total: int

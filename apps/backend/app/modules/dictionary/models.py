@@ -1,5 +1,5 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +42,13 @@ class WordSense(Base):
     lang: Mapped[str]
     gloss: Mapped[str]
     order: Mapped[int] = mapped_column(default=0)
+
+
+Index(
+    "ix_senses_gloss_prefix",
+    func.lower(WordSense.gloss).label("gloss_lower"),
+    postgresql_ops={"gloss_lower": "text_pattern_ops"},
+)
 
 
 class Kanji(Base):

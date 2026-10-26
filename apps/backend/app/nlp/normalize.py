@@ -34,6 +34,11 @@ def query_type(text: str) -> str:
     return "latin"
 
 
+def is_vietnamese(text: str) -> bool:
+    marked = "ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ"
+    return any(c in marked for c in unicodedata.normalize("NFC", text).lower())
+
+
 def normalize_query(text: str) -> str:
     kind = query_type(text)
     if kind == "kanji":
