@@ -1,5 +1,6 @@
 import asyncio
 import io
+import json
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -13,11 +14,13 @@ from app.modules.textbooks import service as textbooks
 from app.modules.textbooks.blocks import validate_content
 
 from .adapters.csv_template import COLUMNS, CSVTemplateAdapter
+from .adapters.free_text import FreeTextAdapter, validate_text
 from .adapters.mimikara import MimikaraAdapter
 from .adapters.normalized_json import NormalizedJSONAdapter
 from .models import ImportJob, ImportRow
 
 ADAPTERS = {
+    "free_text": FreeTextAdapter(),
     "csv_template": CSVTemplateAdapter(),
     "mimikara": MimikaraAdapter(),
     "normalized_json": NormalizedJSONAdapter(),
@@ -45,10 +48,34 @@ def template():
     return ",".join(COLUMNS) + "\n1,1,緊張,きんちょう,căng thẳng,tension,,,,\n"
 
 
-async def upload(db, user, textbook_id, adapter, filename, payload):
+def parse_payload(adapter, filename, payload):
+    options = {}
+    if adapter == "free_text":
+        options = json.loads(payload)
+        payload = options.pop("text").encode("utf-8")
+    source = io.BytesIO(payload)
+    source.name = filename
+    return ADAPTERS[adapter].parse(source, **options)
+
+
+async def upload(db, user, textbook_id, adapter, filename, payload, *, options=None):
     book = await textbooks.get_textbook(db, user, textbook_id, True)
     if adapter not in ADAPTERS:
         raise AppError(422, "UNKNOWN_ADAPTER", "Adapter không được hỗ trợ")
+    if adapter == "free_text":
+        if Path(filename).suffix.lower() != ".txt":
+            raise AppError(422, "IMPORT_FORMAT", "free_text chỉ hỗ trợ TXT UTF-8")
+        value = validate_text(payload)
+        payload = json.dumps(
+            {
+                "text": value,
+                "lesson_no": 1,
+                "include_proper_nouns": False,
+                "exclude_jlpt": [],
+                **(options or {}),
+            },
+            ensure_ascii=False,
+        ).encode()
     if adapter == "mimikara" and book.visibility != "private":
         raise AppError(422, "PRIVATE_REQUIRED", "Mimikara phải được import vào giáo trình private")
     if len(payload) > 5 * 1024 * 1024:
@@ -66,10 +93,8 @@ async def upload(db, user, textbook_id, adapter, filename, payload):
         await db.flush()
         await enqueue(db, job.id, "parse")
         return job
-    source = io.BytesIO(payload)
-    source.name = filename
     try:
-        rows = await asyncio.to_thread(ADAPTERS[adapter].parse, source)
+        rows = await asyncio.to_thread(parse_payload, adapter, filename, payload)
     except (ValueError, ValidationError, TypeError, KeyError) as exc:
         raise AppError(
             422, "IMPORT_INVALID_ROW", "Dữ liệu import không hợp lệ", {"reason": str(exc)[:500]}
@@ -103,6 +128,10 @@ async def stage_rows(db, user, job, rows, start=0):
                 db, user, job.textbook_id, row.lesson_no
             )
         status = "auto" if len(candidates) == 1 else "ambiguous" if candidates else "none"
+        excluded = row.raw.get("exclude_jlpt", []) if job.adapter == "free_text" else []
+        if candidates and all(w.jlpt_level in excluded for w in candidates):
+            status = "skipped"
+            row.raw["skip_reason"] = "EXCLUDED_JLPT"
         job.matched += status == "auto"
         job.ambiguous += status == "ambiguous"
         db.add(

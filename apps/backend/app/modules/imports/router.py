@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, Response
 
 from app.common.schemas import DB, Page, Size
 from app.core.config import get_settings
+from app.core.exceptions import AppError
 from app.modules.auth.dependencies import CurrentUser
 
 from . import schemas as s
@@ -33,16 +34,30 @@ async def upload(
     user: CurrentUser,
     textbook_id: Annotated[int, Form()],
     adapter: Annotated[str, Form()],
-    file: Annotated[UploadFile, File()],
     response: Response,
+    file: Annotated[UploadFile | None, File()] = None,
+    text: Annotated[str | None, Form()] = None,
+    lesson_no: Annotated[int, Form(gt=0)] = 1,
+    include_proper_nouns: Annotated[bool, Form()] = False,
+    exclude_jlpt: Annotated[str, Form()] = "",
 ):
+    levels = list(dict.fromkeys(x.strip().upper() for x in exclude_jlpt.split(",") if x.strip()))
+    if any(x not in {"N1", "N2", "N3", "N4", "N5"} for x in levels):
+        raise AppError(422, "INVALID_JLPT", "exclude_jlpt cần N1…N5")
+    if (file is None) == (text is None) or (text is not None and adapter != "free_text"):
+        raise AppError(422, "IMPORT_INPUT", "Cần đúng một file hoặc text cho free_text")
     job = await service.upload(
         db,
         user,
         textbook_id,
         adapter,
-        file.filename or "upload",
-        await file.read(5 * 1024 * 1024 + 1),
+        (file.filename or "upload") if file else "free_text.txt",
+        await file.read(5 * 1024 * 1024 + 1) if file else text.encode("utf-8"),
+        options={
+            "lesson_no": lesson_no,
+            "include_proper_nouns": include_proper_nouns,
+            "exclude_jlpt": levels,
+        },
     )
     if get_settings().import_mode == "async":
         response.status_code = 202

@@ -109,9 +109,8 @@ def prohibitive(tokens: list[Token], index: int) -> bool:
     )
 
 
-def lemmas(text: str) -> list[str]:
-    tokens = tokenize(text)
-    result = []
+def content_tokens(tokens: list[Token]):
+    """Shared M2/M3 POS and contextual auxiliary filter, retaining token indices."""
     for index, token in enumerate(tokens):
         if token.pos[0] not in _CONTENT_POS or not any(c.isalpha() for c in token.lemma):
             continue
@@ -132,6 +131,12 @@ def lemmas(text: str) -> list[str]:
             polite_request = token.lemma == "くださる" and previous.pos[0] in {"動詞", "名詞"}
             if token.lemma != "する" and (after_te or polite_request):
                 continue
+        yield index, token
+
+
+def lemmas(text: str) -> list[str]:
+    result = []
+    for _, token in content_tokens(tokenize(text)):
         reading = lemma_reading(token.lemma)
         result.append(token.lemma)
         if token.normalized_form and reading and lemma_reading(token.normalized_form) == reading:
