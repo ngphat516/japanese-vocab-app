@@ -27,21 +27,33 @@ async def build():
     async with engine.connect() as db:
         rows = (
             await db.execute(
-                select(Word.kanji, Entry.content)
+                select(Word.kanji, Entry.content, Entry.id)
                 .join(Entry, Entry.word_id == Word.id)
                 .order_by(Entry.id)
             )
         ).all()
         current = dict((await db.execute(select(Kanji.char, Kanji.hanviet))).all())
+        headwords = (await db.scalars(select(Word.kanji).order_by(Word.id))).all()
     await engine.dispose()
     counts, examples = Counter(), defaultdict(list)
-    population = {c for word, _ in rows for c in word if HAN.fullmatch(c)}
-    for word, content in rows:
+    population = {c for word, _, _ in rows for c in word if HAN.fullmatch(c)}
+    for word, content, _ in rows:
         counts.update(set(HAN.findall(word + " " + " ".join(japanese_strings(content)))))
+    for word in headwords:
         for char in set(word):
             if word not in examples[char] and len(examples[char]) < 2:
                 examples[char].append(word)
     ordered = sorted(counts, key=lambda c: (-counts[c], ord(c)))
+    missing_examples = {char for char in ordered[300:600] if not examples[char]}
+    source_only = sorted(missing_examples)
+    for _, content, entry_id in rows:
+        for value in japanese_strings(content):
+            for char in list(missing_examples):
+                index = value.find(char)
+                if index >= 0:
+                    excerpt = value[max(0, index - 1) : index + 1]
+                    examples[char] = [f"{excerpt} (câu nguồn, entry {entry_id}; không có headword)"]
+                    missing_examples.remove(char)
 
     def metrics(data, chars):
         return {
@@ -59,6 +71,7 @@ async def build():
         "top300_before": metrics(current, ordered[:300]),
         "top300_after": metrics(readings, ordered[:300]),
         "missing_top300": [c for c in ordered[:300] if not readings.get(c)],
+        "review_source_only": source_only,
     }
     with Path("data/hanviet.csv").open("w", encoding="utf-8", newline="") as handle:  # noqa: ASYNC230
         writer = csv.writer(handle)

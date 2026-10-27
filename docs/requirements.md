@@ -134,9 +134,9 @@ search chỉ đọc dữ liệu; mọi thao tác ghi đi qua dictionary, textboo
 
 ### 4.2. Giá trị trạng thái
 
-import_jobs.status: pending → processing → review → committing → done, hoặc failed.
+import_jobs.status: pending → processing → review → commit_pending → committing → done, hoặc failed (async). Sync bỏ pending/commit_pending khi trả response. Không có trạng thái `mapping`; matching nằm trong processing. GET job trả progress{processed,total}, updated_at.
 
-import_rows.match_status: auto (khớp đúng 1 từ), ambiguous (nhiều ứng viên), none (không khớp, sẽ tạo từ mới), skipped (người dùng bỏ qua).
+import_rows.match_status: auto (khớp đúng 1 từ), ambiguous (nhiều ứng viên), none (không khớp, sẽ tạo từ mới), skipped (người dùng bỏ qua hoặc free_text loại theo exclude_jlpt; raw.skip_reason=EXCLUDED_JLPT).
 
 review_logs.rating: again, hard, good, easy.
 
@@ -159,6 +159,10 @@ kana_norm luôn là hiragana, đã bỏ khoảng trắng và ký tự đặc bi�
 search_text được sinh lại mỗi khi content thay đổi: gộp text của mọi block, bỏ cú pháp furigana và gạch chân. Lemma lưu riêng trong textbook_entries.lemmas (text[] + GIN), không nối vào search_text vì trường này dùng làm summary. Theo quyết định Milestone 1, search dùng lemma ở Milestone 2.
 
 words.hanviet sinh từ bảng kanji khi seed hoặc tạo từ mới; chữ nhiều âm lấy âm đầu tiên, admin sửa tay được.
+
+kanji.hanviet_source là override / unihan / unihan_variant:U+XXXX / null; GET /kanji/{char} và kanji_breakdown đều trả provenance. PATCH /kanji/{char} dành cho admin, audit vào kanji_edits và tính lại từ chứa chữ, trừ từ đã sửa qua DICT-08 (word_edits). Âm chưa duyệt vẫn hiển thị, có thể lẫn Nôm; overrides đã duyệt ưu tiên cao nhất. Chuẩn hóa vị trí dấu thanh, không đổi i/y.
+
+content là nguồn; content_furigana JSONB là bản dẫn xuất nullable, auto_furigana mặc định true. API entry/list/search/detail mặc định dùng bản dẫn xuất, ?furigana=false trả nguồn. Examples/export dùng bản dẫn xuất; raw/meaning/note và bản dịch không tự sinh reading. Chỉ sinh bên trong {{...}} và giữ annotation có sẵn. example_lemmas riêng text[] + GIN cho example/usage.
 
 Xóa giáo trình sẽ xóa cascade bài học và mục từ, nhưng không xóa words.
 
@@ -274,8 +278,8 @@ Mỗi yêu cầu có mã để tham chiếu khi viết task và test. Mức ưu 
 | IMP-08 | Commit trong một transaction: tạo từ mới cho dòng none, ghi textbook_entries; lỗi thì rollback toàn bộ | P0 |
 | IMP-09 | Trường không map được (kể cả âm thanh) đưa vào block raw, không làm mất dữ liệu | P0 |
 | IMP-10 | Xử lý bất đồng bộ bằng worker, client theo dõi tiến độ qua trạng thái job | P1 |
-| IMP-11 | Adapter anki_apkg với bước chọn trường tương ứng; giữ nguyên cú pháp furigana của Anki | P1 |
-| IMP-12 | Adapter free_text: tách từ đoạn văn, lọc loại từ, đề xuất danh sách từ vựng | P1 |
+| IMP-11 | Hoãn khỏi Phase 2: adapter anki_apkg với bước chọn trường tương ứng; NB-06 xuất Anki vẫn giữ | P1 (hoãn) |
+| IMP-12 | Adapter free_text: text form hoặc TXT UTF-8 ≤20.000 ký tự; gom normalized lemma, lọc POS/proper noun/formal noun/số/kana đơn, tối đa2 ví dụ theo token; tùy chọn lesson_no/include_proper_nouns/exclude_jlpt, chung staging→review→commit sync/async | P1 |
 | IMP-13 | Dùng embedding của nghĩa để xếp hạng ứng viên cho dòng ambiguous | P2 |
 
 ### 5.6. Sổ từ (notebook)
@@ -311,9 +315,10 @@ Tất cả endpoint có tiền tố /api/v1, trả JSON, dùng header Authorizat
 | GET / PATCH | /me | Xem, sửa thông tin cá nhân | User | AUTH-04 |
 | GET | /search | Tìm từ: q, textbook_ids, jlpt, page, size; trả đầy đủ block | User | SRCH-01 → 11 |
 | GET | /words/{id} | Chi tiết từ chuẩn: Hán tự, Hán Việt, JLPT, mọi mục từ giáo trình; ghi lịch sử | User | DICT-04, DICT-07, SRCH-08 |
-| GET | /words/{id}/examples | Câu ví dụ ở mục từ khác có chứa từ này | User | SRCH-10 |
+| GET | /words/{id}/examples | Phân trang theo entry nguồn khác từ đích; mỗi item có sentences[], giáo trình/bài/order_no/source_word/ocr_review_required; total capped1000 + total_capped, cùng example_lemmas/quyền với count search | User | SRCH-10 |
 | PATCH | /words/{id} | Sửa âm Hán Việt | Admin | DICT-08 |
 | GET | /kanji/{char} | Chi tiết chữ Hán và các từ chứa nó | User | DICT-09 |
+| PATCH | /kanji/{char} | Sửa danh sách hanviet, source=override, audit và tính lại từ chứa chữ | Admin | DICT-08/09 |
 | GET / POST | /textbooks | Danh sách, tạo giáo trình | User | TB-01 |
 | GET / PATCH / DELETE | /textbooks/{id} | Xem, sửa, xóa giáo trình | Chủ sở hữu | TB-01 |
 | GET / POST | /textbooks/{id}/lessons | Danh sách, tạo bài học | Chủ sở hữu | TB-02 |
@@ -322,7 +327,7 @@ Tất cả endpoint có tiền tố /api/v1, trả JSON, dùng header Authorizat
 | GET / PATCH / DELETE | /entries/{id} | Xem, sửa nội dung block, xóa mục từ | Chủ sở hữu | TB-04, TB-06 |
 | GET | /imports/adapters | Danh sách adapter và định dạng mỗi adapter nhận | User | IMP-01 |
 | GET | /imports/template | Tải file CSV mẫu | User | IMP-03 |
-| POST | /imports | Upload file + chọn adapter, tạo import job | User | IMP-01 → 05 |
+| POST | /imports | File + adapter, hoặc text form cho free_text; async trả202/pending, sync trả201/review | User | IMP-01 → 05, IMP-12 |
 | GET | /imports/{id} | Trạng thái và thống kê job | Chủ sở hữu | IMP-10 |
 | GET | /imports/{id}/rows | Danh sách dòng, lọc theo match_status | Chủ sở hữu | IMP-07 |
 | PATCH | /imports/{id}/rows/{row_id} | Chọn từ đúng hoặc bỏ qua dòng | Chủ sở hữu | IMP-07 |
@@ -368,7 +373,7 @@ Các chỉ tiêu dưới đây áp dụng cho dữ liệu cỡ JMdict (khoảng 
 | NFR-07 | Bảo mật | CORS chỉ cho phép domain frontend; không trả stack trace ra client |
 | NFR-08 | Dữ liệu | Mọi thay đổi schema đi qua Alembic; không sửa migration đã chạy trên production |
 | NFR-09 | Dữ liệu | Backup DB hằng ngày (dùng backup của nhà cung cấp hoặc pg_dump định kỳ) |
-| NFR-10 | Chất lượng | Test coverage của service và nlp/ từ 70% trở lên; CI chạy Ruff và pytest trên mỗi pull request |
+| NFR-10 | Chất lượng | Test coverage từng service, nlp/, job handler và worker từ70% trở lên; CI chạy Ruff và pytest trên mỗi pull request |
 | NFR-11 | Vận hành | Log dạng JSON có request id; endpoint /health cho nhà cung cấp hosting kiểm tra |
 | NFR-12 | Vận hành | Cấu hình hoàn toàn qua biến môi trường; có file .env.example |
 | NFR-13 | Tài liệu | Swagger tại /docs luôn khớp với code; README hướng dẫn chạy local bằng Docker Compose |
@@ -376,6 +381,8 @@ Các chỉ tiêu dưới đây áp dụng cho dữ liệu cỡ JMdict (khoảng 
 | NFR-15 | Hiệu năng | Một trang kết quả /search (kèm đầy đủ block) không vượt quá 200 KB; bật nén gzip |
 | NFR-16 | Mở rộng | Thêm giáo trình mới chỉ cần viết một adapter; thêm loại block mới không làm vỡ dữ liệu cũ (block lạ hiển thị dạng raw) |
 | NFR-17 | Hiệu năng | Xuất Sổ từ 1.000 từ ra Anki/CSV/Markdown trong dưới 10 giây |
+
+Free tier một instance512MB: cấu hình `IMPORT_MODE=sync` và chỉ chạy API, không bật service worker trên cùng quota. Hai process M5 đã chiếm381MiB RSS local, chưa gồm PostgreSQL/OS/proxy/runtime nền nên chưa đủ ngân sách an toàn để cam kết512MB. Đo RSS/HTTP thật trên deploy trước khi bật async; PostgreSQL nên nằm ngoài quota process. Khi dùng Compose cho phương án sync, chỉ khởi động db/api, không chạy worker. NFR-01 vẫn là <300ms tuần tự / <600ms ở10 đồng thời trên HTTP deploy; không thay bằng ASGI hoặc số loopback local.
 
 ## 8. Lộ trình phát triển
 
