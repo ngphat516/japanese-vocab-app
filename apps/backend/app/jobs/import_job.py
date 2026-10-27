@@ -1,7 +1,6 @@
 """Durable import phases. Queue locks plus row claims prevent duplicate execution."""
 
 import asyncio
-import io
 from datetime import UTC, datetime, timedelta
 
 from pydantic import ValidationError
@@ -101,9 +100,7 @@ async def run_job(job_id, phase, *, sessions=Session, attempt=0):
                 await db.execute(delete(ImportRow).where(ImportRow.job_id == job_id))
                 job.total = job.matched = job.ambiguous = 0
         if phase == "parse":
-            source = io.BytesIO(payload or b"")
-            source.name = filename
-            rows = await asyncio.to_thread(service.ADAPTERS[adapter].parse, source)
+            rows = await asyncio.to_thread(service.parse_payload, adapter, filename, payload or b"")
             async with sessions() as db, db.begin():
                 job = await db.get(ImportJob, job_id)
                 job.total = len(rows)

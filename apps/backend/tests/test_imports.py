@@ -32,6 +32,7 @@ async def test_IMP_01_adapter_registry(authorized):
         "mimikara",
         "csv_template",
         "normalized_json",
+        "free_text",
     }
 
 

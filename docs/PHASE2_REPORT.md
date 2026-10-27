@@ -1,5 +1,56 @@
 # Giai đoạn 2 — báo cáo kiểm chứng
 
+## Tổng kết Phase 2
+
+Phạm vi backend P1 đã triển khai đến M6; **IMP-11 hoãn theo yêu cầu**. Không triển khai P2/frontend. Kết quả local không thay thế kiểm chứng môi trường deploy. Chi tiết và số đo lịch sử M0–M5 được giữ nguyên bên dưới.
+
+| Mã P1 | Trạng thái | Test chứng minh (apps/backend/tests) | Milestone |
+| --- | --- | --- | --- |
+| DICT-08 | done | test_m4_api.test_admin_word_patch_audit_and_kanji_visibility; test_m5_hanviet.test_patch_kanji_source_recomputes_except_manual_words | M4/M5/M6 |
+| DICT-09 | done | test_m4_api.test_admin_word_patch_audit_and_kanji_visibility | M4 |
+| TB-06 | done | test_m4_api.test_manual_entry_crud_visibility_validation_conflicts | M4 |
+| TB-07 | done | test_m4_furigana (5 case); test_m5_hanviet.test_public_headword_reading_fallback_without_global_override | M4/M5 |
+| TB-08 | done | test_m4_seeds.test_jlpt_admin_idempotent_source_only | M4 |
+| SRCH-08 | done | test_notebook.test_m3_history_limit_upsert_and_user_isolation | M3 |
+| SRCH-09 | done | test_search_m2.test_SRCH_09_inflection; test_SRCH_09_rank_exact_lemma_prefix_meaning | M2/M3 |
+| SRCH-10 | done | test_search_m2.test_SRCH_10_visibility_sentence_filter_markup_ocr_and_pagination; test_m3_collocation_not_counted_and_entry_total_matches | M2/M3 |
+| IMP-10 | done | test_m5_worker: async flow/two workers, rollback, timeout và retries | M5 |
+| IMP-11 | hoãn | Không triển khai/test adapter Anki import; NB-06 xuất Anki vẫn done | — |
+| IMP-12 | done | test_m6_free_text: grouping/token spans, sync/exclude/permissions, TXT/limits, async full flow | M6 |
+| NB-01 | done | test_notebook.test_m3_history_limit_upsert_and_user_isolation | M3 |
+| NB-02 | done | test_notebook.test_m3_history_saved_collection_flow; test_m3_tag_and_note_validation | M3 |
+| NB-03 | done | test_notebook.test_m3_filters_stats_pagination_and_one_saved_query | M3 |
+| NB-04 | done (backend) | test_notebook filters/stats trả cấp JLPT/null; màu và badge thuộc frontend ngoài phạm vi | M3 |
+| NB-05 | done | test_notebook.test_m3_history_saved_collection_flow; test_m3_collection_conflicts_and_empty_stats | M3 |
+| NB-06 | done | test_notebook_exports.test_m3_export_full_flow_and_round_trip; test_m4_exports | M3/M4 |
+
+| NFR | Bằng chứng/số đo local | Điều kiện / việc chưa xác nhận |
+| --- | --- | --- |
+| NFR-01 | M3 search c=1 p95 tối đa194,11ms synthetic /188,51ms JMdict; M2 c=10 có lượt708,47ms | Ngưỡng <300ms tuần tự, <600ms c=10 trên HTTP deploy; chưa đạt ổn định mọi query, M6 không đo c=10 |
+| NFR-02 | M5 CSV1.000 dòng: review9,749s + commit12,077s =21,827s; M6 free_text20.000 ký tự: max8,937s đến review | HTTP loopback + worker thật, không phải deploy; CSV đã xác nhận1.000 entry |
+| NFR-03 | M5 API170,86MiB, worker210,14MiB, tổng381,00MiB | Không gồm DB/OS/proxy; free tier512MB dùng sync/API, cần đo lại trên deploy |
+| NFR-04 | Auth tests: Argon2, JWT/rotation/expiry | Secret thật lấy env, không đưa credential lên Git |
+| NFR-05 | Tests owner/visibility/private/thu hồi quyền ở dictionary/import/notebook | Không thay bằng kiểm tra frontend |
+| NFR-06 | test_operations: search60/phút, auth/import10/phút | Test bật rate limit; benchmark tắt riêng process đo |
+| NFR-07 | Test CORS và error envelope, không trả stack trace | Domain deploy cần cấu hình env thực tế |
+| NFR-08 | Migration upgrade/downgrade/upgrade PostgreSQL tạm; DB local chỉ upgrade sau backup | Không downgrade DB thật |
+| NFR-09 | Backup custom-format mỗi milestone, catalog pg_restore đọc được | Chưa thiết lập/kiểm chứng lịch backup tự động hằng ngày trên deploy |
+| NFR-10 | Full suite/coverage/Ruff và ngưỡng70% từng service/NLP/job/worker, xem M6 | GitHub CI mới chỉ chạy sau push |
+| NFR-11 | Health200, request log JSON có request id trong probe HTTP M5/M6 | Chưa cấu hình quan sát trên deploy |
+| NFR-12 | Settings từ env, .env.example và Compose | Không track .env/credential local |
+| NFR-13 | FastAPI OpenAPI tự sinh, README chạy local | Chưa kiểm chứng Swagger trên URL deploy |
+| NFR-14 | Nguồn/license JMdict/OpenJLPT/Unihan tại data/README; dữ liệu OCR private/local | Giữ attribution khi phân phối; không push dữ liệu sách |
+| NFR-15 | test_NFR_15_search_gzip_and_payload_budget đạt (fixture) | Không khẳng định mọi trang dữ liệu thật đều <200KB |
+| NFR-16 | Adapter CSV/Mimikara/JSON/free_text dùng chung staging; block raw bảo toàn nguồn | Block không biết phải được adapter map raw trước validation |
+| NFR-17 | M3 xuất1.000 từ: max Anki1,167s / CSV0,894s / Markdown0,930s | ASGI local, chưa gồm mạng/proxy deploy |
+
+Việc còn mở:
+
+- Duyệt Hán Việt lô2+; âm chưa duyệt có thể lẫn Nôm, chữ thiếu và đa âm vẫn cần sửa; file review local ở mục M6.
+- OCR nguồn còn lỗi (ví dụ 協カ), không tự sửa nguyên bản hoặc bịa nghĩa/cách đọc.
+- Kiểm chứng NFR/peak RAM, vận hành backup hằng ngày và cấu hình free tier trên deploy.
+- IMP-11 import Anki tiếp tục hoãn; frontend/P2 không thuộc Phase 2 backend này.
+
 Ngày bắt đầu: 20/10/2026. Phạm vi: backend P1; không triển khai frontend/P2.
 
 ## Baseline trước thay đổi
@@ -18,8 +69,8 @@ Ngày bắt đầu: 20/10/2026. Phạm vi: backend P1; không triển khai front
 Milestone 0 đã commit tại `51e0278` (`perf(search): paginate in SQL, trigram operators`).
 Chưa hoàn thành toàn bộ P1; các tính năng P1 còn lại chưa được triển khai trong bước này.
 Milestone 1 NLP, Milestone 2 search lemma/ví dụ, Milestone 3 Sổ từ, Milestone 4
-furigana/dictionary/mục từ thủ công và Milestone 5 Hán Việt/worker import đã hoàn tất.
-Kết quả ở từng mục bên dưới; dừng sau M5.
+furigana/dictionary/mục từ thủ công, Milestone 5 Hán Việt/worker import và Milestone 6
+free_text/Hán Việt lô1 đã hoàn tất. Kết quả ở từng mục bên dưới; dừng sau M6.
 
 ## Thay đổi search
 
@@ -871,3 +922,150 @@ Phép đo độc lập tự mở/dọn process và sách tạm: `uv run python -
 Hai commit: `58acb6a feat(dictionary): hanviet variants, overrides and kanji edits` và
 `feat(imports): procrastinate worker and async import flow`. **Dừng sau M5**;
 IMP-11 vẫn hoãn, chưa M6.
+
+## Milestone 6 — IMP-12, Hán Việt lô 1 và tổng kết Phase 2
+
+Ngày27/10/2026. Nhánh `milestone-6-free-text` từ main `37eab0f` sau merge PR#4 M5.
+DECISIONS82–89. Không làm frontend/P2, không đo tải10 đồng thời; IMP-11 vẫn hoãn.
+
+### Hán Việt đã duyệt và độ phủ
+
+- Thêm đầy đủ **68 chữ được liệt kê**:42 thiếu +26 sửa (phần kết luận yêu cầu ghi23 sai,
+  nhưng danh sách cụ thể có26; áp dụng toàn bộ danh sách). Note `review M5 lô 1`, thay
+  toàn bộ âm cũ; 楽=LẠC|NHẠC, 行=HÀNH|HÀNG. Giữ 滝 rỗng/chờ duyệt như M5.
+- `nlp/vietnamese.py` là hàm thuần chuẩn hóa vị trí dấu, NFC, bảo toàn i/y, hoa/thường
+  và loại thanh. HOÁ→HÓA, THUỶ→THỦY, HOẠ→HỌA, TOẠ→TỌA. TOÀ→TÒA, không tự biến
+  huyền thành nặng theo lỗi gõ TOÀ→TỌA. Build/seed/PATCH dùng chung hàm; vẫn bảo vệ audit
+  sửa tay theo M5. Kiểm tra cuối DB:0 chữ còn âm chưa chuẩn hóa vị trí dấu.
+- Backup trước seed: **`backups/milestone6/vocab-20261027-125035.dump`**, **5.523.419 byte**,
+  custom format, pg_restore đọc catalog thành công: `verification/m6-backup-toc.log`.
+  Lượt đầu thử khi Docker chưa chạy/DB đang startup đã thất bại trước seed; backup hợp lệ
+  nêu trên được tạo khi DB sẵn sàng, rồi mới ghi dữ liệu.
+- Seed ghi **170 chữ, 1.348 từ**; lượt hai **kanji_changed=0, words_changed=0**.
+  `verification/m6-hanviet-{first,second}.log`. Không thêm migration ở M6.
+
+| Tập đo | Trước M6 | Sau M6 |
+| --- | ---: | ---: |
+| Chữ trong headword có entry (2.004 chữ) | 1.461/2.004 =72,90% | **1.503/2.004 =75,00%** |
+| Có trọng số entry/chữ, cùng tập headword | 81.500/94.816 =85,96% | **89.559/94.816 =94,46%** |
+| Top300 theo tần suất M5: số chữ có âm | 258/300 =86,00% | **300/300 =100%** |
+| Top300 có trọng số entry/chữ | 61.469/69.528 =88,41% | **69.528/69.528 =100%** |
+
+Độ phủ là có âm, không khẳng định toàn bộ âm ngoài overrides đã đúng. Trọng số tính một
+lần/chữ/entry trong headword + trường Nhật example/usage/collocation, rồi giới hạn tập
+chữ headword để so sánh; không phải tỷ lệ entry đã có đủ tất cả âm. Nếu tính toàn bộ
+2.212 chữ xuất hiện trong các trường đó:1.652/2.212=74,68%, trọng số90.116/95.565=94,30%.
+Số trước seed giữ ở `verification/m6-hanviet-before-seed.json`; lượt build sau seed ở
+`m6-hanviet.json`, `m6-hanviet-postseed.log`. Metadata SHA nguồn/overrides hiện tại ở
+`data/hanviet.metadata.json`, Unihan17.0.0 và license như M4/M5.
+
+**Review tiếp:** `apps/backend/verification/m6_hanviet_review_2.md`, đúng300 chữ hạng301–600,
+cùng cách đếm/tie-break M5, không trùng lô đầu. Thêm cột Từ ví dụ, tra headword từ toàn DB.
+**299 chữ có headword ví dụ**; riêng `词` không có headword, lấy nguyên `名词` trong phần
+giải thích tiếng Trung của entry8266, đánh dấu “câu nguồn; không có headword”. Đây là
+nhiễu nguồn cần đối chiếu, không tạo từ giả hoặc âm mới. Các dòng unihan_variant có đánh dấu.
+Đã kiểm tra top300 của file M5 đều có âm trong DB sau seed; review/source không push Git.
+
+### IMP-12 — free_text
+
+- Nhận đúng một `text` form hoặc file TXT UTF-8, tối đa20.000 ký tự (bỏ BOM); quá giới hạn
+  trả422 trước enqueue cả sync/async. Options form: `lesson_no` mặc định1,
+  `include_proper_nouns=false`, `exclude_jlpt=N5,N4`; options được giữ trong payload nội bộ.
+- Tách câu theo 。！？/xuống dòng, Sudachi C và bộ lọc content_tokens dùng chung lemma M2/M3.
+  Giữ danh/động/tính/形状詞/phó từ; loại trợ động từ theo ngữ cảnh, proper noun mặc định,
+  số, formal noun, lemma1 kana, ký hiệu và token không có reading kana hợp lệ.
+- Gom mỗi normalized_form thành một dòng; match bằng dictionary_form + dictionary reading,
+  `order_no` theo lần xuất hiện đầu. Tối đa2 câu khác nhau đầu tiên trong example, raw giữ
+  nguyên câu; đánh {{}} theo span token, mọi lần xuất hiện trong cùng câu đều được đánh.
+  Phần trợ động từ ngoài token vẫn ngoài ngoặc (`{{食べ}}ました`). Không tạo meaning;
+  validator vốn cho phép example/raw nên không nới quy tắc chung. Từ đã match xem nghĩa JMdict
+  qua dictionary; từ không có nghĩa nguồn vẫn để trống, không tự dịch/bịa nghĩa.
+- exclude_jlpt giữ dòng skipped + `raw.skip_reason=EXCLUDED_JLPT` khi tất cả ứng viên thuộc
+  cấp bị loại; ứng viên mixed/null vẫn review. Chung matching/staging/review/commit nguyên tử,
+  quyền chủ sách/job và furigana với adapter cũ. Giới hạn16.000 byte/content entry khi save
+  vẫn giữ; câu nguồn quá dài có thể làm commit fail/rollback theo contract hiện có.
+
+### Đo free_text 20.000 ký tự
+
+`scripts/measure_m6.py`: đoạn tự biên soạn gồm câu đọc sách/ăn uống/đi học/công việc,
+lặp/truncate đúng20.000 Unicode code point, **39 lemma**; không chép sách. HTTP thật
+uvicorn loopback một process API + một worker Procrastinate, poll50ms; không warm tokenizer
+trước lượt đầu. Worker khởi động trước upload, thời gian gồm cả queue/startup/lazy load.
+
+| Lượt | Upload → review (s) |
+| --- | ---: |
+| 1 (bao gồm khởi động/nạp lười) | **8,937** |
+| 2 | **5,083** |
+| 3 | **0,182** |
+
+**3/3 dưới10 giây local**; chênh lệch có cả thời gian chờ queue, không chỉ NLP. Đây là
+workload39 lemma lặp lại, không cam kết mọi văn bản20.000 ký tự đều có cùng chi phí.
+Không thay bằng bằng chứng HTTP deploy. Chỉ đo đến review theo yêu cầu; test sync/async
+có commit thật và furigana. Sách/job/queue tạm được dọn, không tạo Word vì không commit
+trong benchmark; không còn sách `__m6_measure_` trong DB. API/worker probe đã dừng.
+
+JSON: `verification/m6/resources.json`; log `verification/m6-measure.log`, `m6/{api,worker}.log`;
+TXT tự biên soạn `verification/m6/free-text-20000.txt`.
+SHA-256 TXT: `7dc2ade95cd223615e0f1f337e25e01f56d0dceb7219b5deab540a25e51799ef`.
+Không đo lại RSS/c=10 ở M6; số API/worker/tổng gần nhất ở M5, kèm giới hạn đã ghi.
+
+### Kiểm chứng cuối và bảo toàn nguồn
+
+- **210/210 test PASS**, **93,77 giây**: giữ193 test M5, thêm17 case M6. Kỳ vọng registry cũ
+  thêm tên free_text; không bỏ test hoặc hạ ngưỡng. Fixture free_text tự viết.
+- Coverage service/NLP/job/worker **97,18%**: auth95,2%, dictionary98,0%, imports97,6%,
+  notebook100%, exports99,1%, search98,2%, textbooks94,1%, NLP98,2%, job96,7%, worker84,0%.
+  Hàm tone normalization100%; cổng từng service/NLP/job/worker≥70% đạt.
+- Ruff check/format xanh **139 file**, uv sync --frozen đạt (exit0), git diff --check đạt.
+  Một Alembic DeprecationWarning path_separator có từ trước. Test trên Windows/Python3.12.5,
+  PostgreSQL16 Testcontainers; không tuyên bố suite M6 đã chạy Linux/deploy.
+- Log/XML: `verification/m6-tests.{log,xml}`, `m6-coverage.log`, `m6-ruff.log`,
+  `m6-format.log`, `m6-sync.log`. Kiểm tra DB/review: `m6-db-final.json`.
+- Hash content/search_text của19.717 entry vẫn như M5:
+  `06dc8ed500a4acdbe639f64fc664c1a6ede03110c552376fd3c0a7b3f9a0449f`.
+  `verification/m6-content-final.json`; không sửa nguồn OCR, summary hoặc sinh nghĩa giả.
+
+### Kiểm tra file Git và chuẩn bị release
+
+`git ls-files` không chứa bất kỳ file thuộc nhóm cấm:
+
+| Nhóm kiểm tra | Số file |
+| --- | ---: |
+| data/pdf_imports/ | 0 |
+| access.json | 0 |
+| backups/ | 0 |
+| verification/ | 0 |
+| PDF hoặc dữ liệu OCR (.txt/.json/.csv/.xlsx) | 0 |
+| OpenJLPT/Unihan gốc, thư mục nguồn hoặc archive Unihan | 0 |
+
+CSV được track chỉ có **hanviet_overrides.csv đã duyệt** và4 fixture tự biên soạn
+(`tests/fixtures/{hanviet,jlpt,mimikara,template}.csv`), không phải CSV sách/nguồn gốc.
+Bằng chứng `verification/m6-git-files-audit.json`; audit lại sau stage trước release.
+Backups/review/bằng chứng/data nguồn vẫn Git-ignore.
+
+Tổng kết P1/NFR nằm đầu báo cáo; requirements cập nhật contract trạng thái (không mapping),
+examples theo entry, content_furigana/?furigana=false, provenance/PATCH Kanji và NFR-01.
+Free tier512MB chọn `IMPORT_MODE=sync`, chỉ API; tổng381MiB hai process M5 chưa tính DB/
+OS/proxy/overhead, không coi là bằng chứng đủ ngân sách chạy chung worker.
+
+Commit triển khai: `e6436ab fix(dictionary): reviewed hanviet batch 1, tone normalization`;
+`eaff7e0 feat(imports): free text adapter`; commit release/tổng kết tiếp theo chứa báo cáo này.
+Merge fast-forward vào main và tag `v0.2.0` ở **local**; **KHÔNG push** trước khi người dùng
+duyệt danh sách `git log --oneline origin/main..main`. Chưa có GitHub CI run cho M6.
+
+Tái chạy từ apps/backend:
+
+```powershell
+uv sync --frozen
+uv run pytest --cov --cov-report=term-missing --cov-report=json
+uv run python scripts/check_coverage.py coverage.json
+uv run ruff check . ../../scripts
+uv run ruff format --check . ../../scripts
+# Backup trước mọi lần seed; build ghi CSV/review/metadata local
+uv run python -m scripts.build_hanviet_m6
+uv run python -m scripts.seed_hanviet --overrides data/hanviet_overrides.csv
+uv run python -m scripts.measure_m6
+```
+
+**Dừng sau M6.** Backend P1 Phase 2 hoàn tất trong phạm vi đã duyệt, ngoại trừ IMP-11 hoãn;
+Hán Việt lô2+/OCR/NFR và vận hành trên deploy vẫn là việc mở, không triển khai frontend/P2.
