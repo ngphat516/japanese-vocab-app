@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app.core.exceptions import AppError
 from app.nlp.kanji import breakdown
 from app.nlp.normalize import is_vietnamese, kana_normalize, to_romaji
+from app.nlp.vietnamese import normalize_tones
 
 from .models import Kanji, KanjiEdit, Word, WordEdit, WordSense
 
@@ -48,9 +49,7 @@ async def patch_kanji(db, user, char, values):
 
     require_admin(user)
     validate_kanji(char)
-    values = list(
-        dict.fromkeys(unicodedata.normalize("NFC", v.strip()).upper() for v in values if v.strip())
-    )
+    values = list(dict.fromkeys(normalize_tones(v.strip()).upper() for v in values if v.strip()))
     if any(len(v) > 100 for v in values):
         raise AppError(422, "INVALID_HANVIET", "Âm Hán Việt quá dài")
     await hanviet_lock(db)
@@ -89,6 +88,7 @@ async def patch_hanviet(db, user, word_id, value):
     from app.modules.auth.service import require_admin
 
     require_admin(user)
+    value = normalize_tones(value)
     await hanviet_lock(db)
     word = await db.scalar(select(Word).where(Word.id == word_id).with_for_update())
     if word is None:
@@ -583,7 +583,7 @@ async def seed_hanviet(db, path, overrides=None):
             validate_kanji(row["kanji"])
             readings = list(
                 dict.fromkeys(
-                    unicodedata.normalize("NFC", x.strip()).upper()
+                    normalize_tones(x.strip()).upper()
                     for x in row["hanviet"].split("|")
                     if x.strip()
                 )

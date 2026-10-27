@@ -7,8 +7,9 @@ import hashlib
 import json
 import random
 import re
-import unicodedata
 from pathlib import Path
+
+from app.nlp.vietnamese import normalize_tones
 
 HAN = re.compile(r"[一-鿿㐀-䶿豈-﫿\U00020000-\U000323af]")
 VARIANT_FIELDS = {
@@ -66,7 +67,7 @@ def apply_overrides(data, path):
                     raise ValueError("Override requires one kanji")
                 values = list(
                     dict.fromkeys(
-                        unicodedata.normalize("NFC", r.strip()).upper()
+                        normalize_tones(r.strip()).upper()
                         for r in row["hanviet"].split("|")
                         if r.strip()
                     )
@@ -86,7 +87,7 @@ def parse(path):
             if HAN.fullmatch(char):
                 result.setdefault(char, [])
                 for reading in value.split():
-                    reading = unicodedata.normalize("NFC", reading).upper()
+                    reading = normalize_tones(reading).upper()
                     if reading not in result[char]:
                         result[char].append(reading)
     return result
