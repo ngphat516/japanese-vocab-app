@@ -38,8 +38,9 @@ Xuất `data/hanviet.csv`, `data/hanviet.metadata.json` và
 M4 dừng ở bước duyệt; M5 đã được người dùng cho phép seed với provenance và override.
 Âm chưa duyệt vẫn hiển thị kèm hanviet_source để frontend đánh dấu, sửa dần qua PATCH /kanji.
 
-M5 trích thêm Unihan_Variants.txt từ cùng ZIP17.0.0. Chỉ tra Traditional/Semantic/Z/
-SpecializedSemanticVariant khi chữ thiếu kVietnamese; nhiều nguồn mâu thuẫn để trống.
+M5 trích thêm Unihan_Variants.txt từ cùng ZIP17.0.0. M7 siết chỉ tra
+`kTraditionalVariant` và `kZVariant` khi chữ thiếu kVietnamese; bỏ Semantic và
+SpecializedSemanticVariant. Nhiều nguồn mâu thuẫn để trống.
 `hanviet_overrides.csv` gồm13 âm đã duyệt và dòng 滝 rỗng/chờ duyệt, được version-control.
 Không dùng lại script build M4 để ghi đè CSV M5 khi chưa có chủ đích.
 
@@ -55,3 +56,41 @@ CSV M5 thêm source, metadata ghi SHA-256 cả readings/variants/overrides. Revi
 Copyright © Unicode, Inc.; file nguồn ghi © 2025. Toàn bộ thông báo bản quyền và
 điều khoản đi kèm tại `data/unihan/LICENSE.txt`; giữ file này khi chia sẻ CSV/dữ liệu.
 Dữ liệu được cung cấp nguyên trạng theo điều khoản Unicode, không bảo đảm độ chính xác.
+
+## KANJIDIC2 — đánh giá M7
+
+Nguồn [jmdict-simplified release 3.6.2+20261019180022](https://github.com/scriptin/jmdict-simplified/releases/tag/3.6.2%2B20261019180022),
+đúng release của JMdict local, `kanjidic2-en-3.6.2+20261019180022.json.zip`.
+Giải nén JSON vào `data/kanjidic2/kanjidic2-en-3.6.2.json` (Git-ignore).
+JSON version3.6.2, dictDate2026-10-19, fileVersion4, databaseVersion2026-292.
+Build chỉ lấy `readingMeaning.groups[].readings[]` có `type=vietnam`, giữ thứ tự nguồn,
+chuẩn NFC/vị trí dấu bằng `nlp/vietnamese.py`, viết hoa và khử trùng.
+
+Ghi công KANJIDIC2 / Electronic Dictionary Research and Development Group (EDRDG);
+cách đọc tiếng Việt do Minh Chau Pham cung cấp, chuyển JSON bởi scriptin/jmdict-simplified.
+Phân phối dữ liệu dẫn xuất theo [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/),
+giữ ghi công, link giấy phép và ghi rõ đã chuẩn hóa/chọn trường khi chia sẻ.
+Xem [giấy phép nguồn](https://github.com/scriptin/jmdict-simplified#kanjidic).
+
+```powershell
+uv run python -m scripts.build_hanviet_m7
+# Chỉ seed SAU backup custom-format và kiểm tra pg_restore -l thành công
+uv run python -m scripts.seed_hanviet --overrides data/hanviet_overrides.csv
+uv run python -m scripts.seed_hanviet --overrides data/hanviet_overrides.csv
+```
+
+Metadata local `data/hanviet.metadata.json` lưu phiên bản, URL, SHA-256 JSON và các
+nguồn Unihan/overrides; kết quả chi tiết ở `verification/m7-hanviet.json`.
+Tập chuẩn là169 chữ có âm trong overrides đã duyệt; mọi tỷ lệ chấm điểm dùng mẫu số169,
+kể cả chữ nguồn không phủ. Báo cả chứa âm chuẩn đầu và chứa toàn bộ tập âm chuẩn.
+Biến thể được đo riêng (không cộng lại âm Unihan trực tiếp).
+
+KANJIDIC2 đạt147/169=86,98% âm đầu trùng, dưới90%; vì vậy M7 **giữ** thứ tự
+override > Unihan trực tiếp > Unihan biến thể đã siết. KANJIDIC2 chỉ dùng đánh giá/review;
+seed đã hỗ trợ provenance `kanjidic2` cho trường hợp sau này đạt cổng.
+Không tự hạ ngưỡng hay bổ sung fallback KANJIDIC2 khi cổng không đạt.
+
+Overrides hiện gồm171 dòng:169 có âm, 滝 chờ duyệt và 込 là quốc tự Nhật để rỗng.
+Lô2 áp dụng88 chữ có âm cùng dòng 込 (note riêng theo yêu cầu).
+Review3 chỉ lấy hạng601–1.200 có thiếu âm/khác âm đầu/≥3 âm và loại chữ hai nguồn
+có cùng tập âm chuẩn hóa. Dữ liệu/review/metadata/backup không commit.

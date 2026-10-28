@@ -14,9 +14,7 @@ from app.nlp.vietnamese import normalize_tones
 HAN = re.compile(r"[一-鿿㐀-䶿豈-﫿\U00020000-\U000323af]")
 VARIANT_FIELDS = {
     "kTraditionalVariant",
-    "kSemanticVariant",
     "kZVariant",
-    "kSpecializedSemanticVariant",
 }
 
 

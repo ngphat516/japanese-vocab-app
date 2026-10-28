@@ -26,7 +26,7 @@ def test_variants_unique_conflicting_cycles_and_overrides(tmp_path):
         parse_variants(path),
     )
     assert data["豊"] == (["PHONG"], "unihan_variant:U+8C50")
-    assert data["沢"][0] == ["TRẠCH"] and "甲" not in data and "丁" not in data
+    assert "沢" not in data and "甲" not in data and "丁" not in data
     result = apply_overrides(data, Path("data/hanviet_overrides.csv"))
     assert result["豊"] == (["PHONG"], "override")
     assert result["爽"] == (["SẢNG"], "override")

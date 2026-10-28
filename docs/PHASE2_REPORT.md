@@ -1069,3 +1069,124 @@ uv run python -m scripts.measure_m6
 
 **Dừng sau M6.** Backend P1 Phase 2 hoàn tất trong phạm vi đã duyệt, ngoại trừ IMP-11 hoãn;
 Hán Việt lô2+/OCR/NFR và vận hành trên deploy vẫn là việc mở, không triển khai frontend/P2.
+
+## Sau Phase 2 — M7: Hán Việt lô 2, biến thể nghiêm ngặt, đánh giá KANJIDIC2
+
+Ngày28/10/2026. Nhánh `milestone-7-hanviet-kanjidic2` từ main `ac06f8f`
+(merge PR#5 M6), DECISIONS90–97. Chỉ backend dictionary; không frontend/P2.
+Mục “Dừng sau M6” ở trên là phạm vi lịch sử; M7 được cho phép riêng trong yêu cầu mới.
+
+### An toàn lịch sử Git public
+
+Đã fetch origin và quét **toàn bộ lịch sử mọi ref local**, không chỉ HEAD:
+`git log --all --name-only --format=` có270 đường dẫn ở baseline; không có
+data/pdf_imports, access.json, backups, verification, .env thật, dump, PDF,
+OCR JSON/JSONL, CSV OpenJLPT gốc hay Unihan gốc. `.env.example` là mẫu cấu hình,
+fixtures JSON/CSV là tự biên soạn; không xem chúng là dữ liệu/credentials thật.
+
+Đọc JWT_SECRET từ .env và hai password từ access.json ở local, dùng
+`git log --all -p -S` cho từng giá trị, chỉ lưu số khớp: **0/0/0 commit khớp,
+0/0/0 lần xuất hiện trong patch được chọn**. Không in secret hoặc diff chứa secret.
+Không phát hiện vi phạm, không rewrite lịch sử. Bằng chứng local:
+`apps/backend/verification/m7-git-history-audit.json`; audit lại sau commit cuối.
+
+`git log --oneline origin/main..main` rỗng sau fetch: M6 đã có trên GitHub qua PR#5.
+Tag local hiện có `v0.2.0`, không tạo tag M7. Sẽ trình danh sách commit nhánh M7 so với
+origin/main và chờ xác nhận trước push/tạo PR. Không tự push main/merge PR.
+Chưa có CI cho M7 khi chưa push; CI main cho thay đổi M7 chỉ có sau khi PR được merge.
+
+### Lô 2 và siết biến thể
+
+Áp dụng **88 chữ có âm** (55 thiếu +33 sửa), note `review M6 lô 2`, thay toàn bộ âm;
+thêm dòng **込 rỗng** với note “quốc tự Nhật, không có âm Hán Việt”. Tổng171 override,
+169 dòng có âm; 滝 tiếp tục rỗng/chờ duyệt. Không sửa OCR hoặc tự tạo âm ngoài danh sách.
+
+Chỉ giữ kTraditionalVariant/kZVariant, bỏ hai trường Semantic/SpecializedSemantic.
+So với quy tắc M6, **964 chữ toàn nguồn thay đổi âm**, trong đó **55 chữ xuất hiện local**.
+Danh sách đầy đủ từng chữ trước→sau (kể cả ngoài tập local):
+`apps/backend/verification/m7-strict-variant-changes.md`, JSON ở `m7-hanviet.json`.
+Ví dụ 雨: fallback **NGỰA → rỗng** khi bỏ liên kết sang U+99AD 馭;
+âm cuối DB là **VŨ** từ override đã duyệt. Dòng rỗng được xuất cho fallback bị loại
+để seed xóa được âm cũ thay vì bỏ qua. Giữ chống chu trình/mâu thuẫn M5.
+
+### Chấm điểm nguồn và thứ tự ưu tiên
+
+Nguồn [KANJIDIC2-en, release 3.6.2+20261019180022](https://github.com/scriptin/jmdict-simplified/releases/tag/3.6.2%2B20261019180022)
+đúng release JMdict local; version3.6.2, dictDate2026-10-19,
+fileVersion4, databaseVersion2026-292. Trích type=vietnam từ mọi nhóm cách đọc,
+chuẩn hóa qua nlp/vietnamese.py, viết hoa, khử trùng, giữ thứ tự nguồn.
+JSON SHA-256: `7d9eb1f8ee470b713cbf23494286d68edcfbef0d99f551b4a2e29d7a2cf2fb2c`.
+Phiên bản/URL/SHA các nguồn được lưu vào `data/hanviet.metadata.json` local;
+attribution EDRDG/Minh Chau Pham/scriptin và CC BY-SA4.0 ở `data/README.md`.
+
+Tập chuẩn = **169 chữ override có âm**, gồm M5 và hai lô đã duyệt.
+Tất cả tỷ lệ dưới đây dùng mẫu số169, kể cả nguồn không phủ chữ.
+“Chứa âm đầu chuẩn” kiểm tra âm đầu override có trong tập nguồn;
+“Chứa toàn bộ âm chuẩn” kiểm tra tập override là tập con của nguồn.
+Biến thể là fallback riêng, **không** tính lại các âm Unihan trực tiếp.
+
+| Nguồn | Độ phủ tập chuẩn | Âm đầu trùng | Chứa âm đầu chuẩn | Chứa toàn bộ âm chuẩn |
+| --- | ---: | ---: | ---: | ---: |
+| KANJIDIC2 | 169/169 =100% | 147/169 =86,98% | 158/169 =93,49% | 158/169 =93,49% |
+| Unihan trực tiếp | 57/169 =33,73% | 2/169 =1,18% | 10/169 =5,92% | 9/169 =5,33% |
+| Unihan biến thể đã siết | 1/169 =0,59% | 0/169 =0% | 0/169 =0% | 0/169 =0% |
+
+KANJIDIC2 cao hơn Unihan trực tiếp nhưng **chưa đạt90% âm đầu trùng**.
+Theo cổng người dùng đặt, giữ **override > Unihan trực tiếp > Unihan biến thể đã siết**.
+Không thêm fallback KANJIDIC2 khi cổng không đạt. Seed đã chấp nhận source `kanjidic2`
+và test precedence/cổng để hỗ trợ nguồn này nếu một lần đánh giá sau đạt điều kiện.
+Điểm trên tập overrides thiên về các chữ từng cần sửa; không suy rộng thành độ chính xác
+của toàn nguồn. Không thay đổi/ngụy tạo thứ tự âm nguồn để vượt cổng.
+
+| Nguồn riêng, trên2212 chữ local | Có âm | Trọng số entry/chữ có âm |
+| --- | ---: | ---: |
+| KANJIDIC2 | 2093/2212 =94,62% | 95093/95565 =99,51% |
+| Unihan trực tiếp | 1405/2212 =63,52% | 77451/95565 =81,05% |
+| Unihan biến thể đã siết | 148/2212 =6,69% | 3336/95565 =3,49% |
+
+### Backup, seed và độ phủ thực tế
+
+Backup **`backups/milestone7/vocab-20261028-221031.dump`**, **5.526.928 byte**,
+custom format PostgreSQL16.15; pg_restore đọc230 TOC entries thành công trước build/seed.
+Seed đầu **kanji_changed=1046, words_changed=825**; lần hai **0/0**.
+Log local `verification/m7-seed-{first,second}.log`. Không thêm migration.
+Giữ bảo vệ audit Word sửa tay (DICT-08) và Kanji sửa qua PATCH; test kiểm tra source
+KANJIDIC2, KanjiEdit, xóa fallback cũ, seed lặp; test DICT-08/M5 vẫn xanh.
+
+| Tập đo | Trước M7 | Sau seed M7 |
+| --- | ---: | ---: |
+| Chữ headword có entry | 1503/2004 =75,00% | 1514/2004 =75,55% |
+| Trọng số headword | 89559/94816 =94,46% | 91320/94816 =96,31% |
+| Toàn bộ chữ trong headword + trường Nhật | 1652/2212 =74,68% | 1663/2212 =75,18% |
+| Trọng số toàn bộ | 90116/95565 =94,30% | 91878/95565 =96,14% |
+
+Cùng population và cách đếm M5/M6: một lần/chữ/entry, chỉ trường Nhật được chọn;
+độ phủ có âm không đồng nghĩa âm đúng, trọng số không phải tỷ lệ entry đã đủ mọi âm.
+Đã kiểm tra DB thực khớp mọi chỉ số trên và cả171 override.
+
+### Review lô 3 và kiểm chứng
+
+`apps/backend/verification/m7_hanviet_review_3.md`: **268 chữ** từ đúng cửa sổ600 chữ
+hạng601–1200, sort số entry giảm dần/tie-break code point như M5.
+Chỉ đưa thiếu âm, hai nguồn có âm đầu khác nhau hoặc ≥3 âm; loại chữ hai nguồn có
+cùng tập âm chuẩn hóa theo yêu cầu không review chữ đồng thuận. Nguồn thiếu không xem
+là đồng thuận. Cột đủ âm đang dùng/source/KANJIDIC2/Unihan/số entry/từ ví dụ;
+Unihan là trực tiếp rồi fallback đã siết. Ví dụ chỉ dùng headword thật; không có thì
+ghi rõ “không có headword”. Review/raw sources/bằng chứng không push Git.
+
+**220/220 test PASS**, **151,63 giây**, giữ210 test M6 và thêm10 case M7.
+Coverage service/NLP/job/worker **97,18%**, mọi cổng từng service/NLP/job/worker≥70% đạt;
+Ruff check/format xanh142 file, uv sync --frozen exit0, git diff --check đạt.
+Test trên Windows/Python3.12.5 với PostgreSQL16 Testcontainers; không tuyên bố Linux/deploy.
+Một Alembic DeprecationWarning path_separator từ trước. Venv local được sửa đường dẫn
+Python đã mất sang runtime3.12.5 trong workspace; không đổi lock/dependency.
+Log/XML `verification/m7-tests.{log,xml}`, `m7-coverage.log`, `m7-build.log`, `m7-sync.log`.
+
+Hash content/search_text **19.717 entry** vẫn như M6:
+`06dc8ed500a4acdbe639f64fc664c1a6ede03110c552376fd3c0a7b3f9a0449f`.
+Bằng chứng `verification/m7-db-final.json`. Không sửa nội dung nguồn/search_text,
+không sinh nghĩa hoặc headword giả. Chỉ push code/docs/overrides khi được xác nhận.
+
+Hai commit triển khai yêu cầu: `fix(dictionary): hanviet batch 2, strict variants`
+và `feat(dictionary): kanjidic2 vietnamese readings`. Chưa push/tạo PR/tag mới;
+chờ người dùng duyệt danh sách hash cuối. NFR deploy/OCR/IMP-11 vẫn mở như M6.
