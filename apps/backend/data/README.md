@@ -94,3 +94,23 @@ Overrides hiện gồm171 dòng:169 có âm, 滝 chờ duyệt và 込 là quố
 Lô2 áp dụng88 chữ có âm cùng dòng 込 (note riêng theo yêu cầu).
 Review3 chỉ lấy hạng601–1.200 có thiếu âm/khác âm đầu/≥3 âm và loại chữ hai nguồn
 có cùng tập âm chuẩn hóa. Dữ liệu/review/metadata/backup không commit.
+
+## M7b — chỉ đánh giá, chưa áp dụng combined
+
+```powershell
+uv run python -m scripts.evaluate_hanviet_m7b
+```
+
+Evaluator chỉ đọc nguồn/review/DB, ghi kết quả vào `verification/m7b-evaluation.json`
+và `verification/m7b-combined-mismatches.md`. Không ghi `hanviet.csv`, metadata M7,
+overrides hoặc DB. Đòi hỏi hai file review local gốc M5/M6, mỗi file đúng300 chữ,
+và KANJIDIC2 pin M7. Các file này vẫn Git-ignore.
+
+Tập chuẩn mới lấy đủ600 chữ; lọc membership KANJIDIC2 còn599, trong đó 込 có chuẩn
+rỗng được báo riêng;598 chữ dùng để so âm. Combined chỉ đổi thứ tự tập âm KANJIDIC2
+bằng âm chung đầu tiên của Unihan, không thêm âm Unihan ngoài tập đó. Chuẩn hóa
+vị trí dấu/viết hoa bảo toàn i/y; do đó KÍ và KÝ vẫn khác.
+
+Combined đạt565/598=94,48%, dưới cổng95%; **dừng, không áp dụng**. Không seed,
+không thêm overrides lô3, chưa có review4. Quy tắc production/source/override vẫn M7.
+Điểm593/598=99,16% của combined+override không được dùng thay cho cổng combined.
