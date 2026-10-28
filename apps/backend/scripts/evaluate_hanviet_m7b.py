@@ -12,10 +12,11 @@ from app.db.session import engine
 from app.modules.dictionary.models import Kanji, Word
 from app.modules.textbooks.models import Entry
 from app.nlp.furigana import japanese_strings
+from app.nlp.hanviet import combined_readings as candidate_combined
 from app.nlp.vietnamese import normalize_tones
 from scripts.build_hanviet_m7 import KANJIDIC, OVERRIDES, READINGS, VARIANTS
 from scripts.build_hanviet_unihan import HAN, apply_overrides, parse, parse_variants, with_variants
-from scripts.hanviet_sources import coverage, parse_kanjidic2, score
+from scripts.hanviet_sources import coverage, parse_kanjidic2, score, score_iy_insensitive
 
 REVIEWS = [Path("verification/m5_hanviet_review.md"), Path("verification/m6_hanviet_review_2.md")]
 
@@ -47,22 +48,6 @@ def reviewed_standard(paths, overrides, expected_batch_size=300):
         if len(batch) != expected_batch_size:
             raise ValueError(f"Expected {expected_batch_size} reviewed characters in {path}")
         result.update(batch)
-    return result
-
-
-def candidate_combined(members, kanjidic, unihan):
-    result = {}
-    for char in sorted(members):
-        values = list(kanjidic.get(char, []))
-        if not values:
-            if char in unihan:
-                result[char] = unihan[char]
-            continue
-        shared = next((v for v in unihan.get(char, ([], None))[0] if v in values), None)
-        if shared is not None:
-            values.remove(shared)
-            values.insert(0, shared)
-        result[char] = (values, "kanjidic2_unihan" if shared is not None else "kanjidic2")
     return result
 
 
@@ -116,6 +101,9 @@ async def evaluate():
         "standard_blank": sorted(c for c, v in gold.items() if not v),
         "standard": gold_all,
         "scores": scores,
+        "scores_iy_insensitive": {
+            s: score_iy_insensitive(data, gold) for s, data in strategies.items()
+        },
         "unihan_without_overrides_diagnostic": raw_unihan,
         "mismatches": [
             {

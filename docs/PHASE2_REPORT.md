@@ -1293,3 +1293,129 @@ git diff --check đạt. Windows/Python3.12.5/PostgreSQL16 Testcontainers;
 Alembic path_separator DeprecationWarning có từ trước.
 Log/XML `verification/m7b-tests.{log,xml}`, `m7b-coverage.log`, `m7b-ruff.log`,
 `m7b-format.log`, `m7b-evaluation.log`. Không tuyên bố CI M7b khi chưa push.
+
+## M7c — combined làm fallback, khóa âm đã duyệt và overrides lô 3
+
+Ngày28/10/2026. Nhánh `milestone-7c-combined-fallback` từ main `ca678b6`
+(merge PR#7 M7b), DECISIONS104–111. Không frontend/P2.
+
+### Quyết định thay cổng M7b
+
+Theo quyết định trực tiếp của người dùng, cổng M7b được thay: đánh giá fallback
+chưa duyệt phải so **Unihan thô434/598=72,58%** với **combined565/598=94,48%**;
+không so với pipeline đã chứa đáp án overrides, không yêu cầu95%.
+Kết quả “không áp dụng” ở M7b được giữ như lịch sử, M7c áp dụng theo quyết định mới.
+
+Thứ tự mới **override (kể cả rỗng) > combined > Unihan trực tiếp > Unihan biến thể
+Traditional/Z đã siết**. Combined giữ nguyên tập âm KANJIDIC2, đưa âm chung đầu tiên
+theo thứ tự Unihan lên đầu nếu có; không có âm chung giữ thứ tự KANJIDIC2.
+Không bao giờ thêm âm chỉ có ở Unihan: 森=SÂM, không CHÙM; 税=THUẾ, 治=TRỊ.
+Source `kanjidic2_unihan` nếu có âm chung, `kanjidic2` nếu không. Production và
+evaluator dùng cùng `app/nlp/hanviet.py`; service/seed chấp nhận source mới,
+Word được tính lại từ âm đầu Kanji như trước. Không migration.
+
+### Khóa600 chữ đã duyệt và lô3
+
+Giữ nguyên **171 override cũ** (đã đối chiếu từng dòng với Git baseline),
+thêm **441 dòng** chưa có override từ hai review M5/M6, trừ 词,
+âm/thứ tự đúng lúc duyệt, note **`accepted M5/M6`**. Script lock chạy lại thêm0 dòng,
+không sửa dòng đã có.599 chữ trong population mới gồm598 có âm và込 rỗng.
+
+Build kiểm tra chuẩn từ snapshot **M7b độc lập**, không lấy dự đoán combined làm
+đáp án; toàn bộ598 âm đầu và tập âm chuẩn đều đạt **598/598** sau khóa,
+DB sau seed cũng xác nhận598/598. `容` giữ **DUNG** dù combined đề xuất DONG.
+`込` quốc tự vẫn rỗng; `滝` tiếp tục rỗng/chờ duyệt.
+
+Thêm đủ **24 dòng** note **`review M7 lô 3`**, đúng âm/thứ tự người dùng duyệt:
+19 chữ M7b đã hoãn cùng句/百/横/尚/姉. Không chữ nào trong lô3 trùng171 override cũ
+hoặc600 chữ chuẩn. Tổng **636 dòng overrides,634 có âm**. 繰/扱 vẫn chưa duyệt,
+không thêm override, giữ âm fallback và đưa lại review4.
+
+### Điểm strict và điểm không phân biệt i/y
+
+Mẫu số vẫn598 chữ chuẩn có âm sau lọc membership, không tính词 và báo riêng込 rỗng.
+Giữ nguyên điểm strict; thêm diagnostic NFD/Y→I/NFC, bảo toàn dấu thanh,
+KÍ≡KÝ, KĨ≡KỸ nhưng KI không bằng KÝ. Không thay chính tả hoặc âm trong dữ liệu.
+
+| Chiến lược | Độ phủ | Âm đầu strict | Chứa âm đầu strict | Âm đầu i/y | Chứa âm đầu i/y |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Unihan thô + biến thể đã siết | 488/598 =81,61% | 434/598 =72,58% | 442/598 =73,91% | 440/598 =73,58% | 448/598 =74,92% |
+| KANJIDIC2 thuần | 598/598 =100% | 550/598 =91,97% | 583/598 =97,49% | 553/598 =92,47% | 586/598 =97,99% |
+| Combined chưa override | 598/598 =100% | 565/598 =94,48% | 583/598 =97,49% | 568/598 =94,98% | 586/598 =97,99% |
+| Combined + overrides sau khóa | 598/598 =100% | **598/598 =100%** | **598/598 =100%** | **598/598 =100%** | **598/598 =100%** |
+
+598/598 xác nhận bảo toàn tập đã duyệt, không khẳng định độ chính xác của phần
+fallback chưa duyệt. Không áp lại cổng95% hoặc dùng phép gộp i/y để đổi dữ liệu.
+Nguồn KANJIDIC2 giữ release3.6.2+20261019180022 cùng JMdict; Unihan17.0.0,
+license/attribution như M7. Metadata local lưu phiên bản, SHA nguồn/overrides/review/
+snapshot chuẩn, điểm strict/i/y và độ phủ DB thực.
+
+### Population, backup và seed
+
+Population giữ membership thật KANJIDIC2: **2101 chữ local**, từ2212 ban đầu;
+111 chữ bị loại và danh sách đầy đủ như M7b. Chọn **xóa âm tự động cũ ngoài population**,
+source=null, giữ bản ghi Kanji/meaning/strokes và toàn bộ entry nguồn. Không thêm âm
+mới cho chữ ngoài population. Build xuất dòng rỗng, seed `--kanjidic2` còn chặn chữ
+ngoài population từ CSV/overrides và xóa dòng cũ bị thiếu khỏi CSV.
+
+Giữ ngoại lệ bảo vệ **KanjiEdit/PATCH và WordEdit.hanviet/DICT-08**; test kiểm tra
+cả Word sửa tay và Kanji đã PATCH. Local không có KanjiEdit bảo vệ;111 chữ bị loại
+đều không còn âm sau seed (90 chữ có âm cũ đã được xóa,21 chữ vốn rỗng).
+Không tự phân loại tất cả111 chữ là giản thể; 您/每/笨/罩 có trong KANJIDIC2 nên vẫn
+thuộc population. Không sửa hoặc xóa nội dung OCR để làm sạch mẫu đo.
+
+Backup trước build/seed: **`backups/milestone7c/vocab-20261028-232949.dump`**,
+**5.523.523 byte**, PostgreSQL16 custom format, pg_restore đọc catalog thành công:
+`verification/m7c-backup-toc.log`. Seed đầu **kanji_changed=15965, words_changed=1586**;
+seed lần hai **0/0**. Log `verification/m7c-seed-{first,second}.log`.
+Số Kanji cập nhật gồm đổi source, thêm/bỏ âm trên toàn dataset; không phải15965
+chữ local hoặc15965 chữ trước đó có âm bị đổi.
+
+| Chỉ số trên population2101 chữ | Trước M7c | Sau seed M7c, đã xác minh DB |
+| --- | ---: | ---: |
+| Có âm | 1573/2101 =74,87% | **2099/2101 =99,90%** |
+| Có trọng số entry/chữ | 91506/95137 =96,18% | **95063/95137 =99,92%** |
+
+Hai chữ chưa có âm là滝/込 đã nêu. Cùng trường Nhật/cách đếm M5–M7b:
+một lần/chữ/entry, trọng số không phải tỷ lệ entry đủ mọi âm; có âm không có nghĩa đã duyệt.
+
+### Danh sách đổi âm và review4
+
+Danh sách đầy đủ **7507 chữ đã có âm trước M7c nhưng đổi danh sách âm sau seed**:
+`apps/backend/verification/m7c-hanviet-changes.md`, JSON `verification/m7c-build.json`.
+Mỗi dòng có **trước → sau, source trước/sau, số entry**, sort số entry giảm dần,
+tie-break code point; đã đối chiếu mọi dòng với DB sau seed, không chỉ dự phóng.
+Trong đó **477 chữ xuất hiện local**.5854 chữ toàn DB bị xóa âm do ngoài population;
+1653 chữ còn lại thay âm/thứ tự/tập âm trong population. Không tính đổi source đơn thuần
+là đổi âm. Danh sách/baseline đầy đủ giữ local Git-ignore, không đưa nguồn thô vào Git.
+
+**`apps/backend/verification/m7c_hanviet_review_4.md`:144 dòng**. Dùng thứ hạng mới
+trong population2101 chữ, lấy hạng1201+ khi (a) thiếu âm; (b) source kanjidic2 và
+KANJIDIC2 có≥2 âm; (c) source kanjidic2_unihan kéo âm khác âm đầu KANJIDIC2 lên đầu.
+Thêm (d)繰/扱 dù đang hạng1032/1067.116 dòng source kanjidic2,27 kanjidic2_unihan,
+1 dòng override rỗng/chờ duyệt. Cột đủ chữ/âm được chọn/source/âm KANJIDIC2/âm Unihan/
+số entry/từ ví dụ. Chỉ headword thật, không có ghi rõ; không bịa từ hoặc nghĩa.
+
+### Kiểm chứng và trạng thái Git
+
+**242/242 test PASS**, **123,88 giây**: giữ231 test cũ, thêm11 case M7c;
+targeted22 case M7b/M7c cũng pass trước seed. Coverage service/NLP/job/worker
+**97,21%**, hàm combined100%, từng cổng service/NLP/job/worker≥70% đạt.
+Ruff check/format xanh149 file, git diff --check đạt. Test Windows/Python3.12.5,
+PostgreSQL16 Testcontainers; chưa tuyên bố Linux/deploy. Một Alembic path_separator
+DeprecationWarning có từ trước. Không đổi dependency/lockfile.
+
+Verifier đối chiếu toàn bộ projection CSV+overrides với DB, bảo toàn hash content/search_text
+**19717 entry**: `06dc8ed500a4acdbe639f64fc664c1a6ede03110c552376fd3c0a7b3f9a0449f`.
+Bằng chứng: `verification/m7c-db-final.json`, `m7c-verify.log`, `m7c-build.{json,log}`,
+`m7c-tests.{log,xml}`, `m7c-coverage.log`, `m7c-ruff.log`, `m7c-format.log`.
+
+Tái chạy theo thứ tự backup/catalog → `scripts.lock_hanviet_m7c` →
+`scripts.build_hanviet_m7c` → `scripts.seed_hanviet --overrides data/hanviet_overrides.csv
+--kanjidic2 data/kanjidic2/kanjidic2-en-3.6.2.json` hai lần → `scripts.verify_hanviet_m7c`.
+Không build lại sau seed nếu cần giữ baseline trước seed. Nguồn/metadata/review/CSV
+production/backup/bằng chứng vẫn Git-ignore, chỉ code/docs/overrides được commit.
+
+Commit dự kiến `feat(dictionary): combined hanviet fallback, lock reviewed readings, batch 3`.
+**Chưa push/tạo PR M7c**; cần người dùng xác nhận commit cụ thể. Không đổi tag,
+không triển khai frontend/P2; NFR deploy/OCR/IMP-11 vẫn mở.
