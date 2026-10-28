@@ -591,7 +591,7 @@ async def seed_hanviet(db, path, overrides=None):
             source = "override" if override else row.get("source") or None
             if (
                 source is not None
-                and source not in {"unihan", "override"}
+                and source not in {"unihan", "override", "kanjidic2"}
                 and not source.startswith("unihan_variant:U+")
             ):
                 raise ValueError("Unknown hanviet source")
