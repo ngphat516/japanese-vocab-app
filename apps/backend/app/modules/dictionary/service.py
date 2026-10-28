@@ -572,7 +572,7 @@ async def seed_kanjidic(db, path):
         )
 
 
-async def seed_hanviet(db, path, overrides=None):
+async def seed_hanviet(db, path, overrides=None, *, population=None):
     await hanviet_lock(db)
     values = {}
     for source_path, override in [(path, False), (overrides, True)]:
@@ -591,12 +591,17 @@ async def seed_hanviet(db, path, overrides=None):
             source = "override" if override else row.get("source") or None
             if (
                 source is not None
-                and source not in {"unihan", "override", "kanjidic2"}
+                and source not in {"unihan", "override", "kanjidic2", "kanjidic2_unihan"}
                 and not source.startswith("unihan_variant:U+")
             ):
                 raise ValueError("Unknown hanviet source")
             values[row["kanji"]] = (readings, source)
     current = {k.char: k for k in (await db.scalars(select(Kanji))).all()}
+    if population is not None:
+        # Also clear existing characters omitted from the new projection.
+        for char in current.keys() | values.keys():
+            if char not in population:
+                values[char] = ([], None)
     edited = set((await db.scalars(select(KanjiEdit.char).distinct())).all())
     changed = 0
     for char, (readings, source) in values.items():

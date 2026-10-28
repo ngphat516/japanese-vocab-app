@@ -114,3 +114,37 @@ vị trí dấu/viết hoa bảo toàn i/y; do đó KÍ và KÝ vẫn khác.
 Combined đạt565/598=94,48%, dưới cổng95%; **dừng, không áp dụng**. Không seed,
 không thêm overrides lô3, chưa có review4. Quy tắc production/source/override vẫn M7.
 Điểm593/598=99,16% của combined+override không được dùng thay cho cổng combined.
+
+## M7c — combined làm fallback sau khóa âm đã duyệt
+
+Quyết định người dùng thay cổng M7b: fallback combined94,48% tốt hơn Unihan thô72,58%,
+không yêu cầu95%. Phần M7b ở trên ghi kết quả lịch sử; production hiện dùng M7c.
+
+`hanviet_overrides.csv` có636 dòng: giữ nguyên171 dòng cũ, thêm441 âm/thứ tự đã duyệt
+(note `accepted M5/M6`) và24 override lô3 (note `review M7 lô 3`).598 chữ chuẩn có âm
+đạt598/598 sau khóa; 込 và滝 vẫn rỗng, 繰/扱 tiếp tục cần review.
+
+Thứ tự: override kể cả rỗng > combined > Unihan trực tiếp > biến thể Traditional/Z.
+Combined giữ tập/thứ tự âm KANJIDIC2, đưa âm Unihan chung đầu tiên lên đầu nếu có;
+source `kanjidic2_unihan` nếu có âm chung, `kanjidic2` nếu không. Không thêm âm chỉ có
+ở Unihan (森→SÂM, không CHÙM). Hàm dùng chung production/evaluator ở `app/nlp/hanviet.py`.
+
+Population chỉ gồm membership KANJIDIC2. Xóa âm tự động cũ ngoài population và source=null,
+không xóa Kanji hoặc nội dung nguồn. Giữ bảo vệ audit PATCH/DICT-08. Seed cần truyền
+`--kanjidic2` để chặn cả chữ ngoài population bị đưa lại qua CSV/overrides.
+
+```powershell
+# Backup và kiểm tra pg_restore -l TRƯỚC build/seed
+uv run python -m scripts.lock_hanviet_m7c
+uv run python -m scripts.build_hanviet_m7c
+uv run python -m scripts.seed_hanviet --overrides data/hanviet_overrides.csv --kanjidic2 data/kanjidic2/kanjidic2-en-3.6.2.json
+uv run python -m scripts.seed_hanviet --overrides data/hanviet_overrides.csv --kanjidic2 data/kanjidic2/kanjidic2-en-3.6.2.json
+uv run python -m scripts.verify_hanviet_m7c
+```
+
+Lock chạy lại không thêm dòng/sửa override sẵn có. Build cần review gốc M5/M6 và snapshot
+`verification/m7b-evaluation.json` độc lập; không build lại sau seed nếu muốn giữ baseline
+trước seed trong `verification/m7c-build.json`. Không dùng build M4–M7 để ghi đè production M7c.
+Metadata lưu pin/nguồn/license/SHA, điểm strict và báo cáo có thêm i/y-insensitive;
+không đổi chính tả dữ liệu để gộp i/y. Review4 và danh sách đổi âm ở
+`verification/m7c_hanviet_review_4.md`, `verification/m7c-hanviet-changes.md`; Git-ignore.

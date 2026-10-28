@@ -1,6 +1,7 @@
 """Offline source projection and evaluation; no network or database side effects."""
 
 import json
+import unicodedata
 from pathlib import Path
 
 from app.nlp.vietnamese import normalize_tones
@@ -51,6 +52,23 @@ def score(source, standard):
 def prefer_kanjidic2(scores):
     kanji, direct = scores["kanjidic2"], scores["unihan"]
     return kanji["first_match_percent"] >= 90 and kanji["first_match"] > direct["first_match"]
+
+
+def score_iy_insensitive(source, standard):
+    """Diagnostic only: preserve tone marks while folding I/Y, never modify data."""
+
+    def fold(data):
+        return {
+            c: [
+                unicodedata.normalize(
+                    "NFC", unicodedata.normalize("NFD", v).upper().replace("Y", "I")
+                )
+                for v in values
+            ]
+            for c, values in data.items()
+        }
+
+    return score(fold(source), fold(standard))
 
 
 def combine(direct, variants, kanjidic2, overrides, prefer):
