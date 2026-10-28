@@ -1190,3 +1190,106 @@ không sinh nghĩa hoặc headword giả. Chỉ push code/docs/overrides khi đ�
 Hai commit triển khai yêu cầu: `fix(dictionary): hanviet batch 2, strict variants`
 và `feat(dictionary): kanjidic2 vietnamese readings`. Chưa push/tạo PR/tag mới;
 chờ người dùng duyệt danh sách hash cuối. NFR deploy/OCR/IMP-11 vẫn mở như M6.
+
+
+## M7b — đánh giá combined trên 600 chữ đã duyệt: KHÔNG ĐẠT CỔNG
+
+Ngày28/10/2026. Nhánh `milestone-7b-combined-hanviet` từ main `3700d0d`,
+DECISIONS98–103. Không frontend/P2. **Dừng tại đánh giá, không áp dụng combined.**
+
+### Trạng thái M7 và tập chuẩn mới
+
+Bước0 đã hoàn tất trước M7b: [PR#6](https://github.com/ngphat516/japanese-vocab-app/pull/6)
+đã merge vào main `3700d0d`; [CI main run40719553529](https://github.com/ngphat516/japanese-vocab-app/actions/runs/40719553529)
+PASS. Local đã pull main, nhánh M7 đã xóa local/remote. Không push/tạo lại PR M7.
+
+Đọc nguyên hai file review gốc local: `m5_hanviet_review.md` và
+`m6_hanviet_review_2.md`, mỗi file300 chữ, tổng600 không trùng. Chuẩn = override M7
+nếu có (kể cả rỗng), nếu không = âm/thứ tự đang dùng lúc duyệt trong file review.
+Chuẩn hóa bằng nlp/vietnamese.py và viết hoa, bảo toàn i/y; không sửa KÍ thành KÝ
+hoặc đổi thứ tự âm nguồn để cải thiện điểm. Snapshot toàn bộ600 chữ và SHA-256 từng
+review/nguồn/overrides nằm trong `verification/m7b-evaluation.json` local.
+
+Lọc membership KANJIDIC2 còn **599 chữ chuẩn**: loại `词`. `込` vẫn thuộc population
+nhưng chuẩn rỗng có chủ đích, báo riêng thay vì gán âm; mẫu số so âm là **598**.
+Không chỉ lọc theo chữ có reading vietnam để tránh bỏ qua chữ nguồn thiếu âm.
+
+### Quy tắc candidate và bốn chiến lược
+
+Evaluator chỉ giữ tập âm KANJIDIC2; theo thứ tự Unihan trực tiếp rồi fallback
+Traditional/Z đã siết, chọn âm chung đầu tiên và đưa đúng âm đó lên đầu.
+Không có âm chung thì giữ thứ tự KANJIDIC2, không thêm âm chỉ có ở Unihan.
+KANJIDIC2 không có âm thì fallback Unihan. Candidate source là `kanjidic2_unihan`
+khi có âm chung, `kanjidic2` khi không; override kể cả rỗng luôn thắng.
+Các source/thuật toán này **chỉ nằm trong evaluator**, chưa bật ở service/seed.
+
+| Chiến lược | Độ phủ | Âm đầu trùng | Chứa âm đầu chuẩn |
+| --- | ---: | ---: | ---: |
+| Unihan hiện tại: pipeline M7 gồm overrides | 589/598 =98,49% | 589/598 =98,49% | 589/598 =98,49% |
+| KANJIDIC2 thuần | 598/598 =100% | 550/598 =91,97% | 583/598 =97,49% |
+| Combined chưa override | 598/598 =100% | **565/598 =94,48%** | 583/598 =97,49% |
+| Combined + overrides baseline M7 | 598/598 =100% | 593/598 =99,16% | 594/598 =99,33% |
+
+Để tránh nhập nhằng giữa “Unihan hiện tại” và nguồn chưa sửa: **Unihan trực tiếp +
+biến thể đã siết, chưa overrides** đạt độ phủ488/598=81,61%, âm đầu434/598=72,58%,
+chứa âm đầu442/598=73,91%. Điểm này cũng lưu riêng trong JSON, không bỏ đi.
+
+**Cổng KHÔNG ĐẠT**: combined565/598=94,4816% <95% và thấp hơn pipeline M7 hiện tại.
+Ngay cả nếu so baseline Unihan chưa override72,58%, điều kiện ≥95% vẫn trượt.
+Cần ít nhất569/598 để đạt95% (thiếu4 trường hợp); không lấy điểm99,16% của
+combined+override thay cho điểm combined để vượt cổng.
+
+Có33 sai khác âm đầu, liệt kê đủ trong `verification/m7b-combined-mismatches.md`.
+Ví dụ candidate đã chọn đúng 税→THUẾ, 治→TRỊ và 森→SÂM (không thêm CHÙM),
+nhưng 行 chọn HÀNG thay vì chuẩn HÀNH; 読 chọn ĐẬU thay vì ĐỘC;
+戦 chỉ có KHUYẾT thay vì CHIẾN. KÍ/KÝ và KĨ/KỸ vẫn khác theo contract bảo toàn i/y.
+
+### Population mới và độ phủ thực tế
+
+Nguồn KANJIDIC2 giữ đúng release3.6.2+20261019180022 đã dùng ở M7;
+membership10384 chữ. Trong2212 chữ local, có **2101 chữ thuộc population mới**,
+**111 chữ bị loại**, trọng số bị loại428/95565. Trọng số còn95137,
+vẫn đếm một lần/chữ/entry trên cùng trường Nhật M5–M7.
+
+Danh sách đầy đủ111 chữ không có trong KANJIDIC2 (sort code point):
+
+`东 丢 严 为 乐 书 买 仅 值 兴 别 剧 办 动 劲 势 单 发 变 处 妆 实 对 带 强 忧 户 换 搅 摇 时 查 标 样 樱 欢 汉 污 测 渐 满 炖 烦 热 现 產 电 础 简 类 级 纯 组 细 经 结 给 艺 节 茧 荟 莹 虽 见 览 說 订 认 讯 记 许 论 评 词 话 详 语 说 请 读 谁 谢 负 责 货 购 费 跃 车 转 边 过 还 这 邮 释 鉴 钱 问 间 阅 际 险 难 页 项 顺 预 题 饭 龄`
+
+Lưu ý các ví dụ trong yêu cầu: 题/邮/產 thực sự không có trong JSON, nhưng
+**您/每/笨/罩 có trong KANJIDIC2** nên vẫn tính theo quy tắc membership.
+Membership không tự chứng minh một câu OCR là tiếng Nhật đúng; không sửa/xóa nguồn OCR
+hoặc tự tạo blacklist từ nhận định ngôn ngữ.
+
+| Chỉ số trên population mới2101 chữ | Trước đánh giá | Sau đánh giá (không seed) |
+| --- | ---: | ---: |
+| Có âm | 1573/2101 =74,87% | 1573/2101 =74,87% |
+| Có trọng số entry/chữ | 91506/95137 =96,18% | 91506/95137 =96,18% |
+
+Mô phỏng combined + overrides M7 sẽ phủ2099/2101 chữ, trọng số95063/95137;
+đây **chỉ là dự phóng chưa áp dụng**, không phải kết quả seed hoặc lý do bỏ cổng.
+Độ phủ trước/sau thực tế giữ nguyên vì dừng khi không đạt cổng.
+
+### Phạm vi dừng và kiểm chứng
+
+Không tạo backup/build CSV production/seed hoặc chạy seed lần hai vì không có thay đổi
+DB được áp dụng. Giữ nguyên171 overrides, metadata/CSV/source M7 và thứ tự nguồn M7.
+**Chưa thêm19 override lô3**; `繰`, `扱` tiếp tục chưa duyệt.
+**Không tạo `m7b_hanviet_review_4.md`**, số dòng review4 là **chưa tạo**, không ghi0
+để tránh hiểu nhầm toàn bộ hạng1201+ đã qua lọc và không còn gì cần duyệt.
+Không tạo commit feature áp dụng combined theo tên dự kiến khi điều kiện chưa đạt.
+
+Evaluator tái chạy bằng `uv run python -m scripts.evaluate_hanviet_m7b`, chỉ đọc DB/
+nguồn/reviews và ghi JSON/log/sai khác vào verification local Git-ignore.
+Đã đối chiếu SHA nguồn/override với metadata M7 và hash content/search_text19717 entry
+vẫn là `06dc8ed500a4acdbe639f64fc664c1a6ede03110c552376fd3c0a7b3f9a0449f`.
+Bằng chứng `verification/m7b-content-final.json`. Chưa push/tạo PR M7b;
+chỉ thực hiện khi người dùng xác nhận commit đánh giá cụ thể.
+
+**231/231 test PASS**, **120,02 giây**: giữ220 test M7, thêm11 case cho evaluator
+(âm chung/thứ tự nguồn, không thêm CHÙM cho 森, membership, override rỗng/thắng candidate,
+đọc chuẩn600 chữ, cổng95%/so sánh nghiêm ngặt). Coverage service/NLP/job/worker
+**97,18%**, từng cổng service/NLP/job/worker≥70% đạt; Ruff check/format xanh144 file,
+git diff --check đạt. Windows/Python3.12.5/PostgreSQL16 Testcontainers;
+Alembic path_separator DeprecationWarning có từ trước.
+Log/XML `verification/m7b-tests.{log,xml}`, `m7b-coverage.log`, `m7b-ruff.log`,
+`m7b-format.log`, `m7b-evaluation.log`. Không tuyên bố CI M7b khi chưa push.
