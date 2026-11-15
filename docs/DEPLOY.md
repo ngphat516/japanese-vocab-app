@@ -23,29 +23,48 @@ Chế độ import là `IMPORT_MODE=sync`, không chạy worker (quyết định
 
 Extension `pg_trgm` và `vector` được migration `0001_p0` tạo tự động; Neon hỗ trợ cả hai.
 
-## 2. Migration + seed từ máy local lên Neon
+## 2. Seed trên Postgres tạm local, rồi restore lên Neon
 
-Chạy từ `apps/backend`, dùng biến môi trường tạm cho phiên PowerShell, **không ghi
-URL Neon vào `.env` hay commit**:
+**Không seed thẳng lên Neon.** `seed_jmdict` ghi từng từ (nhiều truy vấn/từ, một
+transaction); qua mạng tới Singapore hơn một triệu round-trip sẽ mất hàng chục giờ.
+Seed vào container tạm (không đụng volume DB local) rồi dump/restore một lần:
 
 ```powershell
+docker run -d --name vocab-seed-tmp -e POSTGRES_DB=vocab -e POSTGRES_USER=vocab -e POSTGRES_PASSWORD=vocab -p 127.0.0.1:5433:5432 pgvector/pgvector:pg16
 cd apps/backend
-$env:DATABASE_URL = "postgresql://...neon.tech/neondb?sslmode=require&channel_binding=require"
+$env:DATABASE_URL = "postgresql+asyncpg://vocab:vocab@127.0.0.1:5433/vocab"
 uv run alembic upgrade head
 uv run python -m scripts.seed_jmdict data/bench/jmdict-eng-3.6.2.json --kanjidic data/kanjidic2/kanjidic2-en-3.6.2.json
 uv run python -m scripts.seed_hanviet data/hanviet.csv --overrides data/hanviet_overrides.csv --kanjidic2 data/kanjidic2/kanjidic2-en-3.6.2.json
+uv run python -m scripts.db_size
+docker exec vocab-seed-tmp pg_dump -Fc -U vocab -d vocab -f /tmp/public.dump
+docker cp vocab-seed-tmp:/tmp/public.dump ./public.dump
 ```
 
-Kiểm tra dung lượng ngay sau seed JMdict, trước các bước tiếp theo:
+Restore bằng `pg_restore` cùng major version với Neon (Neon hiện chạy Postgres 18).
+URL Neon để trong `apps/backend/.env.neon` (Git-ignore qua `.env.*`), truyền vào
+container bằng biến môi trường, không đặt trên dòng lệnh:
 
 ```powershell
+$env:DATABASE_URL = "<URL Neon trực tiếp>"
+docker run --rm -e DATABASE_URL -v "${PWD}:/dump:ro" postgres:18 sh -c 'pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error -d "$DATABASE_URL" /dump/public.dump'
 uv run python -m scripts.db_size
 ```
 
-Nếu vượt ~450MB, dừng lại: JMdict đầy đủ không vừa gói 0,5GB, cần chọn tập con
-hoặc đổi nơi chứa DB. Ghi số đo vào báo cáo.
+Số đo 16/11/2026 (JMdict 3.6.2 đầy đủ, KANJIDIC2, Hán Việt M7c):
 
-Admin và giáo trình OpenJLPT (đăng ký tài khoản qua API đã deploy ở bước 3 trước):
+| | Giá trị |
+| --- | --- |
+| Seed JMdict + KANJIDIC2 local | ~54 phút |
+| Seed Hán Việt (lần 2: 0 thay đổi) | 27 giây |
+| words / word_senses / kanji | 323.447 / 721.391 / 16.666 |
+| Kanji có âm / words có Hán Việt | 9.825 / 245.748 |
+| Dump custom-format | 16MB |
+| Restore lên Neon | ~1,5 phút |
+| Dung lượng trên Neon | 214MB / 512MB |
+
+Admin và giáo trình OpenJLPT (đăng ký tài khoản qua API đã deploy ở bước 3 trước;
+script này cũng ghi từng dòng, có thể chạy thẳng Neon nhưng chậm):
 
 ```powershell
 uv run python -m scripts.create_admin YOUR_ADMIN_EMAIL

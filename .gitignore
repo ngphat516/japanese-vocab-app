@@ -17,3 +17,6 @@ coverage.json
 backups/
 verification/
 .tools/
+.env.*
+!.env.example
+*.dump
