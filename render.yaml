@@ -1,0 +1,26 @@
+# Render Blueprint: backend API on the free plan (512 MB RAM).
+# Database is external (Neon free tier); paste its DIRECT (non-pooler) URL into DATABASE_URL.
+services:
+  - type: web
+    name: japanese-vocab-api
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: apps/backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: IMPORT_MODE
+        value: sync
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: CORS_ORIGINS
+        value: '["http://localhost:3000"]'
+      # Only Render's proxy can reach the container, so trust its X-Forwarded-For.
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
