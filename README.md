@@ -69,3 +69,4 @@ volume DB cũ bằng `POSTGRES_VOLUME_NAME` để bảo toàn dữ liệu đã i
 - [Quyết định triển khai](docs/DECISIONS.md)
 - [Báo cáo backend P0](docs/REPORT.md)
 - [Báo cáo dữ liệu PDF](docs/PDF_IMPORT_REPORT.md)
+- [Deploy backend Render + Neon](docs/DEPLOY.md)

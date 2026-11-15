@@ -6,5 +6,8 @@ RUN uv sync --frozen --no-dev
 COPY . .
 RUN useradd -m api && chown -R api:api /app
 USER api
+ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 EXPOSE 8000
-CMD ["sh", "-c", "uv run --no-sync alembic upgrade head && uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# PORT is injected by hosts such as Render; Compose keeps the default 8000.
+# Uvicorn reads FORWARDED_ALLOW_IPS from env (default 127.0.0.1) for X-Forwarded-For.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

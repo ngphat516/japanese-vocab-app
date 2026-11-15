@@ -13,10 +13,10 @@ def configure_event_loop():
 def create_app(url=None, sessions=None):
     import procrastinate
 
-    from app.core.config import get_settings
+    from app.core.config import get_settings, to_libpq_url
     from app.jobs.import_job import register
 
-    url = (url or get_settings().database_url).replace("postgresql+asyncpg://", "postgresql://")
+    url = to_libpq_url(url or get_settings().database_url)
     app = procrastinate.App(
         connector=procrastinate.PsycopgConnector(
             conninfo=url,
