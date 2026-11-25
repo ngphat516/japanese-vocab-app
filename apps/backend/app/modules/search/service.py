@@ -53,6 +53,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size, furigana=True)
         page,
         size,
         forms,
+        hidden_ids=await textbooks.hidden_word_ids(db, user),
     )
     entries = await textbooks.visible_entries(
         db, user, word_ids=[w.id for w in words], textbook_ids=textbook_ids, furigana=furigana

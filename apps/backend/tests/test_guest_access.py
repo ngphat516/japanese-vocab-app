@@ -13,6 +13,7 @@ from app.modules.notebook.models import SearchHistory
 from app.modules.textbooks import service as textbooks
 from app.modules.textbooks.models import Textbook
 from app.modules.textbooks.schemas import TextbookCreate
+from tests.conftest import auth
 
 
 def as_guest(client):
@@ -64,16 +65,56 @@ async def test_guest_cannot_see_private_textbook(imported, db):
         await client.get("/api/v1/search", params={"q": "緊張", "textbook_ids": book["id"]})
     ).json()["items"] == []
     assert (await client.get("/api/v1/search", params={"q": "từ bí mật"})).json()["items"] == []
-    found = (await client.get("/api/v1/search", params={"q": "秘語"})).json()["items"]
-    # Headword matching does not filter by readability (pre-existing, same for any logged-in
-    # user), but the private entry itself must never be returned.
-    assert all(i["entries"] == [] for i in found if i["word"]["id"] == secret.id)
+    for q in ["秘語", "秘", "ひご"]:  # exact, prefix and kana headword matches
+        found = (await client.get("/api/v1/search", params={"q": q})).json()
+        assert secret.id not in [i["word"]["id"] for i in found["items"]], q
+        assert found["total"] == len(found["items"]), q
 
     detail = await client.get(f"/api/v1/words/{items[0]['word']['id']}")
     assert detail.status_code == 200 and detail.json()["entries"] == []
     missing = await client.get(f"/api/v1/words/{secret.id}")
     assert missing.status_code == 404
     assert missing.json()["error"]["code"] == "WORD_NOT_FOUND"
+
+
+async def private_only_word(client, db):
+    owner = await current_user(db, client.headers["authorization"][7:])
+    book = await textbooks.create_textbook(db, owner, TextbookCreate(name="Secret"))
+    lesson = await textbooks.ensure_lesson(db, owner, book.id, 1)
+    word = await dictionary.create_word(db, "秘語", "ひご")
+    await textbooks.save_entry(db, owner, lesson.id, word.id, 1, [{"type": "meaning", "vi": "x"}])
+    return owner, word
+
+
+async def search_ids(client, q, headers=None):
+    response = await client.get("/api/v1/search", params={"q": q}, headers=headers)
+    assert response.status_code == 200, response.text
+    return [i["word"]["id"] for i in response.json()["items"]]
+
+
+async def test_private_only_headword_hidden_from_other_users(authorized, seeded, db):
+    client, _ = authorized
+    owner, secret = await private_only_word(client, db)
+    orphan = await dictionary.create_word(db, "秘密", "ひみつ")  # no entries anywhere
+    assert secret.id in await search_ids(client, "秘")  # owner still finds it
+
+    other, _ = await auth(client, "b@example.com")
+    assert secret.id not in await search_ids(client, "秘", other)
+    assert secret.id not in await search_ids(client, "ひご", other)
+    assert orphan.id in await search_ids(client, "秘", other)  # reveals nothing private
+    assert (await client.get(f"/api/v1/words/{secret.id}", headers=other)).status_code == 404
+
+    # Once the word also appears in a textbook B can read, B finds it.
+    public = await textbooks.create_textbook(db, owner, TextbookCreate(name="Shared"))
+    public.visibility = "public"
+    shared = await textbooks.ensure_lesson(db, owner, public.id, 1)
+    await textbooks.save_entry(db, owner, shared.id, secret.id, 1, [{"type": "meaning", "vi": "y"}])
+    item = (await client.get("/api/v1/search", params={"q": "秘語"}, headers=other)).json()[
+        "items"
+    ][0]
+    assert item["word"]["id"] == secret.id
+    assert [e["textbook_id"] for e in item["entries"]] == [public.id]
+    assert secret.id in await search_ids(client, "秘語", {"Authorization": ""})
 
 
 async def test_guest_word_detail_no_history(imported, db):

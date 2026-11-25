@@ -1,9 +1,10 @@
 import asyncio
 import json
 
-from sqlalchemy import column, func, literal, or_, select, union_all
+from sqlalchemy import column, func, literal, not_, or_, select, union_all
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import aliased
 
 from app.core.exceptions import AppError
 from app.modules.auth.service import require_admin
@@ -16,11 +17,11 @@ from .blocks import validate_content
 from .models import Entry, Lesson, Textbook
 
 
-def visible(user):
+def visible(user, book=Textbook):
     """Textbooks a reader may see; guests (user is None) only see public ones."""
     if user is None:
-        return Textbook.visibility == "public"
-    return or_(Textbook.visibility == "public", Textbook.owner_id == user.id)
+        return book.visibility == "public"
+    return or_(book.visibility == "public", book.owner_id == user.id)
 
 
 async def get_textbook(db, user, textbook_id, write=False):
@@ -361,6 +362,37 @@ def visible_word_ids(user, textbook_ids=None, query=None):
         else:
             stmt = stmt.where(dictionary.text_match_condition(Entry.search_text, query))
     return stmt
+
+
+async def hidden_word_ids(db, user):
+    """Non-JMdict words whose every entry sits in a textbook this reader cannot see.
+
+    Search must not reveal even their headword. Words with no entries at all are left
+    alone: they belong to no textbook, so they reveal nothing private. Computed once per
+    request instead of as a subquery that every search source would re-run. Starts from
+    the (small) unreadable side and probes the word_id index for a readable entry.
+    """
+    readable_entry, readable_lesson = aliased(Entry), aliased(Lesson)
+    readable_book = aliased(Textbook)
+    readable = (
+        select(1)
+        .select_from(readable_entry)
+        .join(readable_lesson, readable_lesson.id == readable_entry.lesson_id)
+        .join(readable_book, readable_book.id == readable_lesson.textbook_id)
+        .where(readable_entry.word_id == Entry.word_id, visible(user, readable_book))
+    )
+    hidden = (
+        select(Entry.word_id)
+        .distinct()
+        .join(Lesson, Lesson.id == Entry.lesson_id)
+        .join(Textbook, Textbook.id == Lesson.textbook_id)
+        .where(
+            not_(visible(user)),
+            Entry.word_id.in_(dictionary.non_jmdict_ids()),
+            not_(readable.exists()),
+        )
+    )
+    return list((await db.scalars(hidden)).all())
 
 
 def example_key(word):
