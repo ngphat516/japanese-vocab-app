@@ -1,0 +1,6 @@
+node_modules/
+dist/
+public/themes/
+src/styles/themes.generated.css
+openapi.json
+*.tsbuildinfo

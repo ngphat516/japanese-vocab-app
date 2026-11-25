@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi" data-theme="day">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>言の葉 Kotonoha · Tra từ vựng tiếng Nhật</title>
+    <script>
+      // Set data-theme before first paint (no colour flash). Mirrors resolveTheme().
+      (function () {
+        var themes = ['day', 'night', 'spring', 'summer', 'autumn', 'winter'];
+        var pref = 'auto';
+        try { pref = localStorage.getItem('kotonoha.theme') || 'auto'; } catch (e) {}
+        var theme = pref;
+        if (themes.indexOf(pref) < 0) {
+          var m = new Date().getMonth() + 1;
+          theme = m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
