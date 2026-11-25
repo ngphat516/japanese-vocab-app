@@ -21,7 +21,8 @@
   a { color: var(--ink); }
   a:hover { color: var(--acc-text); }
   :focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
-  rt { font-size: 0.5em; color: var(--muted); }
+  ruby { ruby-align: center; }
+  rt { font-size: 0.5em; color: var(--muted); letter-spacing: -0.02em; }
   u.target {
     text-decoration-line: underline;
     text-decoration-color: var(--acc);

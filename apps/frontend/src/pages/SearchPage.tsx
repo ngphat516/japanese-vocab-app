@@ -3,11 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { search } from '@/api/endpoints';
-import { useAuth } from '@/auth/AuthProvider';
 import { Hero } from '@/components/Hero';
-import { LoginPrompt } from '@/components/LoginPrompt';
 import { SearchBox } from '@/components/SearchBox';
-import { Window } from '@/components/Window';
 import { useDebounced } from '@/hooks/useDebounced';
 import { HomeLists } from './search/HomeLists';
 import { ResultsWindow } from './search/ResultsWindow';
@@ -17,7 +14,6 @@ import { WordOfSeason } from './search/WordOfSeason';
 const PAGE_SIZE = 20;
 
 export function SearchPage() {
-  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const w = Number(params.get('w')) || undefined;
@@ -51,7 +47,7 @@ export function SearchPage() {
   const results = useQuery({
     queryKey: ['search', q, page],
     queryFn: ({ signal }) => search(q, page, PAGE_SIZE, signal),
-    enabled: Boolean(q) && Boolean(user),
+    enabled: Boolean(q),
     placeholderData: keepPreviousData,
   });
 
@@ -83,16 +79,9 @@ export function SearchPage() {
     setParams(next, { replace: true });
   };
 
+  const searching = Boolean(q || w);
   let body;
-  if (!q && !w) body = <HomeLists />;
-  else if (!user)
-    body = (
-      <main className="mx-auto max-w-[1240px] px-4 pt-8 md:px-6">
-        <Window title="Kết quả">
-          <LoginPrompt />
-        </Window>
-      </main>
-    );
+  if (!searching) body = <HomeLists />;
   else
     body = (
       <main className="mx-auto flex max-w-[1240px] flex-wrap items-start gap-7 px-4 pt-8 md:px-6">
@@ -121,8 +110,8 @@ export function SearchPage() {
 
   return (
     <>
-      <Hero search={<SearchBox value={input} onChange={setInput} onSubmit={() => pushQuery(input)} />} />
-      <WordOfSeason />
+      <Hero compact={searching} search={<SearchBox value={input} onChange={setInput} onSubmit={() => pushQuery(input)} />} />
+      <WordOfSeason className={clsx(searching && 'hidden md:block')} />
       {body}
     </>
   );

@@ -18,7 +18,7 @@ const NAV = [
 
 function Header() {
   return (
-    <header className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-[18px] md:px-6">
+    <header className="mx-auto box-border flex w-full max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-[18px] md:px-6">
       <NavLink to="/" className="border-2 border-ink bg-card px-3 py-[6px] text-ink no-underline shadow-block-sm hover:text-ink">
         <Logo />
       </NavLink>
@@ -154,7 +154,7 @@ function MobileNav() {
 
 export function AppShell({ children }: { children?: ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden pb-[68px] md:pb-0">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:bg-card focus:p-2">
         Bỏ qua tới nội dung
       </a>

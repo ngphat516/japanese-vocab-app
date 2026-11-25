@@ -2,6 +2,7 @@ import * as Tabs from '@radix-ui/react-tabs';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { word, wordExamples } from '@/api/endpoints';
 import type { EntryResult, ExampleItem, WordDetail } from '@/api/types';
@@ -105,6 +106,8 @@ const tabClass = (dashed = false) =>
 
 export function WordDetailView({ data, examplesCount }: { data: WordDetail; examplesCount?: number }) {
   const { user } = useAuth();
+  const nav = useNavigate();
+  const loc = useLocation();
   const w = data.word;
   const toggle = useSaveToggle();
   const [furigana, setFurigana] = useLocalBool('kotonoha.furigana', true);
@@ -135,18 +138,20 @@ export function WordDetailView({ data, examplesCount }: { data: WordDetail; exam
           </div>
           {w.hanviet && <div className="font-bold uppercase tracking-[0.04em] text-acc-text">《{w.hanviet.toUpperCase()}》</div>}
         </div>
-        {user && (
-          <button
+        <button
             type="button"
             className={clsx('btn', saved ? 'btn-secondary' : 'btn-primary')}
             aria-pressed={saved}
             disabled={toggle.isPending}
-            onClick={() => toggle.mutate({ wordId: w.id, save: !saved })}
+            onClick={() =>
+              user
+                ? toggle.mutate({ wordId: w.id, save: !saved })
+                : nav('/login?next=' + encodeURIComponent(loc.pathname + loc.search))
+            }
           >
             <Heart aria-hidden="true" size={16} fill={saved ? 'currentColor' : 'none'} />
             {saved ? 'Đã lưu' : 'Lưu'}
           </button>
-        )}
       </div>
       {toggle.isError && <ErrorNote error={toggle.error} />}
 

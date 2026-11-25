@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { tokenStore } from '@/api/client';
 import { auth } from '@/api/endpoints';
 import type { Profile } from '@/api/types';
@@ -24,9 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const me = useQuery({ queryKey: ['me'], queryFn: auth.me, enabled: hasSession, retry: false, staleTime: 5 * 60_000 });
 
+  // Session ended elsewhere (refresh failed): drop cached user data, then refetch what is
+  // on screen as a guest. Only on a true -> false transition: running this on a guest's
+  // first render would remove (and abort) the guest's own in-flight queries.
+  const hadSession = useRef(hasSession);
   useEffect(() => {
-    // Session ended elsewhere (refresh failed): drop cached user data.
-    if (!hasSession) qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'public' });
+    const was = hadSession.current;
+    hadSession.current = hasSession;
+    if (was && !hasSession) {
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'public' });
+      void qc.refetchQueries({ type: 'active' });
+    }
   }, [hasSession, qc]);
 
   const login = useCallback(
