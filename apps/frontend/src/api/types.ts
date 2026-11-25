@@ -96,3 +96,4 @@ export interface ImportRow {
 
 export type JlptLevel = 'N1' | 'N2' | 'N3' | 'N4' | 'N5';
 export type SavedStats = Record<JlptLevel | 'none', number>;
+export type RelatedItem = S['RelatedItem'];
