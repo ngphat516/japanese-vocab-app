@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.common.schemas import DB, Page, Size
-from app.modules.auth.dependencies import CurrentUser
+from app.modules.auth.dependencies import CurrentUser, OptionalUser
 
 from . import service
 from .schemas import KanjiPatch, WordPatch
@@ -15,7 +15,7 @@ async def patch_word(word_id: int, data: WordPatch, db: DB, user: CurrentUser):
 
 
 @router.get("/kanji/{char}")
-async def kanji(char: str, db: DB, user: CurrentUser, page: Page = 1, size: Size = 20):
+async def kanji(char: str, db: DB, user: OptionalUser, page: Page = 1, size: Size = 20):
     return await service.kanji_detail(db, user, char, page, size)
 
 

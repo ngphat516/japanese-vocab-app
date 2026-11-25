@@ -17,6 +17,9 @@ from .models import Entry, Lesson, Textbook
 
 
 def visible(user):
+    """Textbooks a reader may see; guests (user is None) only see public ones."""
+    if user is None:
+        return Textbook.visibility == "public"
     return or_(Textbook.visibility == "public", Textbook.owner_id == user.id)
 
 

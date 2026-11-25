@@ -306,6 +306,8 @@ Mỗi yêu cầu có mã để tham chiếu khi viết task và test. Mức ưu 
 
 Tất cả endpoint có tiền tố /api/v1, trả JSON, dùng header Authorization: Bearer <token> trừ các endpoint đăng ký, đăng nhập và làm mới token.
 
+Quyền "Khách hoặc user": không gửi token thì đọc như khách (chỉ giáo trình public + JMdict, `saved` luôn `false`, không ghi lịch sử); gửi token sai hoặc hết hạn vẫn trả 401. Chỉ 4 route đọc GET /search, GET /words/{id}, GET /words/{id}/examples, GET /kanji/{char} cho phép khách; mọi route ghi, /history, /saved-words*, /collections*, /imports*, /me bắt buộc đăng nhập.
+
 | Method | Endpoint | Mô tả | Quyền | Mã yêu cầu |
 | --- | --- | --- | --- | --- |
 | POST | /auth/register | Đăng ký | Công khai | AUTH-01 |
@@ -313,11 +315,11 @@ Tất cả endpoint có tiền tố /api/v1, trả JSON, dùng header Authorizat
 | POST | /auth/refresh | Làm mới access token | Công khai | AUTH-03 |
 | POST | /auth/logout | Thu hồi refresh token | User | AUTH-03 |
 | GET / PATCH | /me | Xem, sửa thông tin cá nhân | User | AUTH-04 |
-| GET | /search | Tìm từ: q, textbook_ids, jlpt, page, size; trả đầy đủ block | User | SRCH-01 → 11 |
-| GET | /words/{id} | Chi tiết từ chuẩn: Hán tự, Hán Việt, JLPT, mọi mục từ giáo trình; ghi lịch sử | User | DICT-04, DICT-07, SRCH-08 |
-| GET | /words/{id}/examples | Phân trang theo entry nguồn khác từ đích; mỗi item có sentences[], giáo trình/bài/order_no/source_word/ocr_review_required; total capped1000 + total_capped, cùng example_lemmas/quyền với count search | User | SRCH-10 |
+| GET | /search | Tìm từ: q, textbook_ids, jlpt, page, size; trả đầy đủ block | Khách hoặc user | SRCH-01 → 11 |
+| GET | /words/{id} | Chi tiết từ chuẩn: Hán tự, Hán Việt, JLPT, mọi mục từ giáo trình; ghi lịch sử (chỉ khi đăng nhập) | Khách hoặc user | DICT-04, DICT-07, SRCH-08 |
+| GET | /words/{id}/examples | Phân trang theo entry nguồn khác từ đích; mỗi item có sentences[], giáo trình/bài/order_no/source_word/ocr_review_required; total capped1000 + total_capped, cùng example_lemmas/quyền với count search | Khách hoặc user | SRCH-10 |
 | PATCH | /words/{id} | Sửa âm Hán Việt | Admin | DICT-08 |
-| GET | /kanji/{char} | Chi tiết chữ Hán và các từ chứa nó | User | DICT-09 |
+| GET | /kanji/{char} | Chi tiết chữ Hán và các từ chứa nó | Khách hoặc user | DICT-09 |
 | PATCH | /kanji/{char} | Sửa danh sách hanviet, source=override, audit và tính lại từ chứa chữ | Admin | DICT-08/09 |
 | GET / POST | /textbooks | Danh sách, tạo giáo trình | User | TB-01 |
 | GET / PATCH / DELETE | /textbooks/{id} | Xem, sửa, xóa giáo trình | Chủ sở hữu | TB-01 |
@@ -369,7 +371,7 @@ Các chỉ tiêu dưới đây áp dụng cho dữ liệu cỡ JMdict (khoảng 
 | NFR-03 | Tài nguyên | API chạy được với 512 MB RAM khi đã nạp Sudachi bản core |
 | NFR-04 | Bảo mật | Mật khẩu băm Argon2/bcrypt; JWT ký bằng secret lấy từ biến môi trường |
 | NFR-05 | Bảo mật | Kiểm tra quyền sở hữu ở tầng service cho mọi thao tác ghi và đọc dữ liệu private |
-| NFR-06 | Bảo mật | Giới hạn tần suất: 60 request/phút cho /search, 10 request/phút cho /auth/* và /imports |
+| NFR-06 | Bảo mật | Giới hạn tần suất: 60 request/phút cho /search (theo user, khách theo IP), 10 request/phút cho /auth/* và /imports |
 | NFR-07 | Bảo mật | CORS chỉ cho phép domain frontend; không trả stack trace ra client |
 | NFR-08 | Dữ liệu | Mọi thay đổi schema đi qua Alembic; không sửa migration đã chạy trên production |
 | NFR-09 | Dữ liệu | Backup DB hằng ngày (dùng backup của nhà cung cấp hoặc pg_dump định kỳ) |
