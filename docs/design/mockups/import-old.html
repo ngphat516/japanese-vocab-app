@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Import giáo trình</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAF8F3}
+a{color:#2B3A67}a:hover{color:#1C1C1E}
+</style>
+</helmet>
+<div style="min-height: 860px; background: #FAF8F3; color: #1C1C1E; font-family: 'Be Vietnam Pro', 'Noto Sans JP', sans-serif; font-size: 15px">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #E7E3DA">
+    <div style="max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; gap: 32px; flex-wrap: wrap">
+      <div style="font-family: 'Noto Serif JP', serif; font-weight: 700; font-size: 18px"><span style="font-family: 'Noto Serif JP', serif; font-weight: 700">言の葉</span><span style="font-family: 'Be Vietnam Pro', sans-serif; font-weight: 600; font-size: 0.8em; margin-left: 8px; opacity: 0.7">Kotonoha</span></div>
+      <nav style="display: flex; gap: 4px; flex-wrap: wrap; flex-grow: 1">
+        <a href="Main.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #6B6A66; text-decoration: none">Tra từ</a>
+        <a href="SoTu.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #6B6A66; text-decoration: none">Sổ từ</a>
+        <a href="#" style="padding: 8px 14px; border-radius: 8px; background: #EEF0F6; color: #2B3A67; font-weight: 600; text-decoration: none">Import</a>
+        <button disabled title="Sắp có" style="padding: 8px 14px; border: 0; background: none; color: #A3A19B; font: inherit; cursor: not-allowed">Ôn tập · Sắp có</button>
+      </nav>
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #2B3A67; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600">K</div>
+    </div>
+  </header>
+
+  <main style="max-width: 960px; margin: 0 auto; padding: 32px 24px">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 700">Import giáo trình</h1>
+
+    <ol style="list-style: none; padding: 0; margin: 24px 0 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+      <li style="display: flex; align-items: center; gap: 10px">
+        <span style="width: 30px; height: 30px; border-radius: 50%; background: #2B3A67; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+        <span style="color: #6B6A66">Chọn nguồn &amp; upload</span>
+      </li>
+      <li aria-hidden="true" style="width: 48px; height: 2px; background: #2B3A67"></li>
+      <li aria-current="step" style="display: flex; align-items: center; gap: 10px">
+        <span style="width: 30px; height: 30px; border-radius: 50%; border: 2px solid #2B3A67; color: #2B3A67; font-weight: 700; display: flex; align-items: center; justify-content: center; box-sizing: border-box">2</span>
+        <span style="font-weight: 600">Xem lại</span>
+      </li>
+      <li aria-hidden="true" style="width: 48px; height: 2px; background: #E7E3DA"></li>
+      <li style="display: flex; align-items: center; gap: 10px">
+        <span style="width: 30px; height: 30px; border-radius: 50%; border: 2px solid #E7E3DA; color: #6B6A66; font-weight: 700; display: flex; align-items: center; justify-content: center; box-sizing: border-box">3</span>
+        <span style="color: #6B6A66">Xác nhận</span>
+      </li>
+    </ol>
+
+    <section style="margin-top: 24px; background: #FFFFFF; border: 1px solid #E7E3DA; border-radius: 12px">
+      <div style="padding: 20px 24px; display: flex; gap: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #E7E3DA">
+        <div style="flex-grow: 1">
+          <div style="font-weight: 600">mimikara_n3_unit5.csv</div>
+          <div style="font-size: 13px; color: #6B6A66">Adapter: Mimikara · Giáo trình: Mimikara N3</div>
+        </div>
+        <div style="display: flex; gap: 20px; font-size: 14px">
+          <div><b style="font-size: 20px">112</b> <span style="color: #6B6A66">hợp lệ</span></div>
+          <div><b style="font-size: 20px; color: #B54708">6</b> <span style="color: #6B6A66">cần chọn</span></div>
+          <div><b style="font-size: 20px; color: #B42318">2</b> <span style="color: #6B6A66">lỗi</span></div>
+        </div>
+      </div>
+
+      <div role="tablist" style="display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid #E7E3DA">
+        <button role="tab" aria-selected="false" style="padding: 12px 14px; border: 0; background: none; font: inherit; color: #6B6A66">Tất cả (120)</button>
+        <button role="tab" aria-selected="true" style="padding: 12px 14px; border: 0; border-bottom: 2px solid #2B3A67; margin-bottom: -1px; background: none; font: inherit; font-weight: 600; color: #2B3A67">Cần chọn (6)</button>
+        <button role="tab" aria-selected="false" style="padding: 12px 14px; border: 0; background: none; font: inherit; color: #6B6A66">Lỗi (2)</button>
+      </div>
+
+      <div style="padding: 8px 24px 20px">
+        <div style="display: grid; grid-template-columns: 60px 1fr 2fr; gap: 16px; padding: 12px 0; font-size: 12px; font-weight: 600; color: #6B6A66; border-bottom: 1px solid #F0EDE6">
+          <span>DÒNG</span><span>DỮ LIỆU GỐC</span><span>CHỌN TỪ KHỚP</span>
+        </div>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+          <div style="display: grid; grid-template-columns: 60px 1fr 2fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid #F0EDE6; align-items: start">
+            <span style="color: #6B6A66">#{{r.line}}</span>
+            <div>
+              <div style="font-family: 'Noto Sans JP', sans-serif; font-size: 18px">{{r.raw}}</div>
+              <div style="font-size: 13px; color: #6B6A66">{{r.note}}</div>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <sc-for list="{{r.opts}}" as="o" hint-placeholder-count="3">
+                <label style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #E7E3DA; border-radius: 8px; cursor: pointer; background: #FAF8F3">
+                  <input type="radio" name="row-{{r.line}}" style="accent-color: #2B3A67">
+                  <span style="font-family: 'Noto Sans JP', sans-serif">{{o.ja}}</span>
+                  <span style="font-size: 13px; color: #6B6A66">{{o.vi}}</span>
+                </label>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <div style="display: flex; justify-content: space-between; margin-top: 20px; gap: 12px; flex-wrap: wrap">
+      <button style="height: 44px; padding: 0 18px; border: 1px solid #E7E3DA; border-radius: 8px; background: #FFFFFF; font: inherit; color: #1C1C1E; cursor: pointer">← Quay lại</button>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="font-size: 13px; color: #6B6A66">Còn 3 dòng chưa chọn</span>
+        <button style="height: 44px; padding: 0 20px; border: 0; border-radius: 8px; background: #2B3A67; color: #FFFFFF; font: inherit; font-weight: 600; cursor: pointer">Tiếp tục: Xác nhận →</button>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rows: [
+        { line: 23, raw: 'かける', note: 'Không có kanji trong file gốc', opts: [
+          { ja: '掛ける', vi: 'treo, gọi (điện)' }, { ja: '欠ける', vi: 'thiếu, sứt' }, { ja: '駆ける', vi: 'chạy' } ] },
+        { line: 41, raw: 'あつい', note: 'Trùng âm, cùng cấp N3', opts: [
+          { ja: '暑い', vi: 'nóng (thời tiết)' }, { ja: '熱い', vi: 'nóng (vật)' }, { ja: '厚い', vi: 'dày' } ] },
+        { line: 87, raw: 'はかる', note: 'Nghĩa gốc: "đo"', opts: [
+          { ja: '測る', vi: 'đo (độ dài)' }, { ja: '量る', vi: 'cân, đo (khối lượng)' }, { ja: '計る', vi: 'đo (thời gian)' } ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

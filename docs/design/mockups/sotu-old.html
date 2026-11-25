@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Sổ từ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAF8F3}
+a{color:#2B3A67}a:hover{color:#1C1C1E}
+</style>
+</helmet>
+<div style="min-height: 800px; background: #FAF8F3; color: #1C1C1E; font-family: 'Be Vietnam Pro', 'Noto Sans JP', sans-serif; font-size: 15px">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #E7E3DA">
+    <div style="max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; gap: 32px; flex-wrap: wrap">
+      <div style="font-family: 'Noto Serif JP', serif; font-weight: 700; font-size: 18px"><span style="font-family: 'Noto Serif JP', serif; font-weight: 700">言の葉</span><span style="font-family: 'Be Vietnam Pro', sans-serif; font-weight: 600; font-size: 0.8em; margin-left: 8px; opacity: 0.7">Kotonoha</span></div>
+      <nav style="display: flex; gap: 4px; flex-wrap: wrap; flex-grow: 1">
+        <a href="Main.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #6B6A66; text-decoration: none">Tra từ</a>
+        <a href="#" style="padding: 8px 14px; border-radius: 8px; background: #EEF0F6; color: #2B3A67; font-weight: 600; text-decoration: none">Sổ từ</a>
+        <a href="Import.dc.html" style="padding: 8px 14px; border-radius: 8px; color: #6B6A66; text-decoration: none">Import</a>
+        <button disabled title="Sắp có" style="padding: 8px 14px; border: 0; background: none; color: #A3A19B; font: inherit; cursor: not-allowed">Ôn tập · Sắp có</button>
+      </nav>
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #2B3A67; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600">K</div>
+    </div>
+  </header>
+
+  <main style="max-width: 1280px; margin: 0 auto; padding: 28px 24px">
+    <div style="display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap">
+      <div style="flex-grow: 1">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 700">Sổ từ</h1>
+        <div style="color: #6B6A66; margin-top: 4px">288 từ đã lưu · bấm vào một cấp để lọc</div>
+      </div>
+      <div style="position: relative">
+        <button aria-expanded="true" style="height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: #2B3A67; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>
+          Xuất
+        </button>
+        <div style="position: absolute; right: 0; top: 48px; width: 220px; background: #FFFFFF; border: 1px solid #E7E3DA; border-radius: 10px; box-shadow: 0 8px 24px rgba(28,28,30,0.10); padding: 6px; z-index: 2">
+          <button style="width: 100%; text-align: left; padding: 10px 12px; border: 0; background: #F3F1EB; border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer; color: #1C1C1E">Anki (.apkg)<div style="font-size: 12px; color: #6B6A66">Có furigana, tag theo cấp</div></button>
+          <button style="width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer; color: #1C1C1E">CSV</button>
+          <button style="width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer; color: #1C1C1E">Markdown</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-top: 24px">
+      <button style="text-align: left; padding: 14px 16px; border-radius: 10px; border: 1px solid #F6CFCF; background: #FDE8E8; font: inherit; cursor: pointer"><div style="font-weight: 700; color: #B42318">N1</div><div style="font-size: 26px; font-weight: 700; color: #1C1C1E">15</div></button>
+      <button style="text-align: left; padding: 14px 16px; border-radius: 10px; border: 1px solid #F8D9B8; background: #FEF0E1; font: inherit; cursor: pointer"><div style="font-weight: 700; color: #B54708">N2</div><div style="font-size: 26px; font-weight: 700; color: #1C1C1E">42</div></button>
+      <button aria-pressed="true" style="text-align: left; padding: 14px 16px; border-radius: 10px; border: 2px solid #1D4ED8; background: #E6EFFD; font: inherit; cursor: pointer"><div style="font-weight: 700; color: #1D4ED8">N3 · đang lọc</div><div style="font-size: 26px; font-weight: 700; color: #1C1C1E">128</div></button>
+      <button style="text-align: left; padding: 14px 16px; border-radius: 10px; border: 1px solid #C3E6D1; background: #E5F5EC; font: inherit; cursor: pointer"><div style="font-weight: 700; color: #15803D">N4</div><div style="font-size: 26px; font-weight: 700; color: #1C1C1E">64</div></button>
+      <button style="text-align: left; padding: 14px 16px; border-radius: 10px; border: 1px solid #DCCDF8; background: #F1EAFD; font: inherit; cursor: pointer"><div style="font-weight: 700; color: #6D28D9">N5</div><div style="font-size: 26px; font-weight: 700; color: #1C1C1E">30</div></button>
+      <button style="text-align: left; padding: 14px 16px; border-radius: 10px; border: 1px solid #E0DED8; background: #EFEEEA; font: inherit; cursor: pointer"><div style="font-weight: 700; color: #6B6A66">Ngoài JLPT</div><div style="font-size: 26px; font-weight: 700; color: #1C1C1E">9</div></button>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; align-items: center">
+      <label style="flex: 1 1 260px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E7E3DA; border-radius: 8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6A66" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input placeholder="Tìm trong sổ từ" aria-label="Tìm trong sổ từ" style="border: 0; outline: none; font: inherit; flex-grow: 1; background: transparent; min-width: 0">
+      </label>
+      <button style="height: 40px; padding: 0 14px; border: 1px solid #E7E3DA; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 14px; color: #1C1C1E">Tag: Tất cả ▾</button>
+      <button style="height: 40px; padding: 0 14px; border: 1px solid #E7E3DA; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 14px; color: #1C1C1E">Giáo trình: Mimikara N3 ▾</button>
+      <div role="group" aria-label="Kiểu hiển thị" style="display: flex; border: 1px solid #E7E3DA; border-radius: 8px; overflow: hidden">
+        <button aria-pressed="true" style="height: 38px; padding: 0 14px; border: 0; background: #2B3A67; color: #FFFFFF; font: inherit; font-size: 14px">Thẻ</button>
+        <button aria-pressed="false" style="height: 38px; padding: 0 14px; border: 0; background: #FFFFFF; color: #6B6A66; font: inherit; font-size: 14px">Bảng</button>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 20px">
+      <sc-for list="{{words}}" as="w" hint-placeholder-count="8">
+        <article style="background: #FFFFFF; border: 1px solid #E7E3DA; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <span style="font-size: 13px; color: #6B6A66; font-family: 'Noto Sans JP', sans-serif">{{w.kana}}</span>
+            <span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #E6EFFD; color: #1D4ED8">N3</span>
+          </div>
+          <div style="font-family: 'Noto Serif JP', serif; font-size: 30px; font-weight: 700">{{w.kanji}}</div>
+          <div>{{w.vi}}</div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px">
+            <span style="font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #F3F1EB; color: #6B6A66">{{w.src}}</span>
+            <span style="font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid #E7E3DA; color: #6B6A66">#{{w.tag}}</span>
+          </div>
+        </article>
+      </sc-for>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      words: [
+        { kanji: '緊張', kana: 'きんちょう', vi: 'Căng thẳng, hồi hộp', src: 'Mimikara N3 · U5', tag: 'phỏng-vấn' },
+        { kanji: '面接', kana: 'めんせつ', vi: 'Phỏng vấn', src: 'Mimikara N3 · U5', tag: 'phỏng-vấn' },
+        { kanji: '経験', kana: 'けいけん', vi: 'Kinh nghiệm', src: 'Mimikara N3 · U2', tag: 'công-việc' },
+        { kanji: '準備', kana: 'じゅんび', vi: 'Chuẩn bị', src: 'Mimikara N3 · U1', tag: 'hằng-ngày' },
+        { kanji: '確認', kana: 'かくにん', vi: 'Xác nhận, kiểm tra', src: 'Mimikara N3 · U3', tag: 'công-việc' },
+        { kanji: '誤解', kana: 'ごかい', vi: 'Hiểu lầm', src: 'Mimikara N3 · U7', tag: 'giao-tiếp' },
+        { kanji: '賛成', kana: 'さんせい', vi: 'Tán thành', src: 'Mimikara N3 · U7', tag: 'giao-tiếp' },
+        { kanji: '締め切り', kana: 'しめきり', vi: 'Hạn chót', src: 'Mimikara N3 · U4', tag: 'công-việc' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
