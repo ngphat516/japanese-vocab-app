@@ -57,7 +57,9 @@ async def example_setup(client, db):
     user = await current_user(db, client.headers["authorization"][7:])
     book = await textbooks.create_textbook(db, user, TextbookCreate(name="Other textbook"))
     lesson = await textbooks.ensure_lesson(db, user, book.id, 1)
-    target = await dictionary.create_word(db, "壁", "かべ")
+    # A real dictionary word (as 壁 is in JMdict): other users may see its headword even
+    # though its only entry is in this private textbook.
+    target = await dictionary.create_word(db, "壁", "かべ", jmdict_id="test-kabe")
     source = await dictionary.create_word(db, "穴", "あな")
     await textbooks.save_entry(
         db, user, lesson.id, target.id, 1, [{"type": "example", "ja": "壁に壁"}]

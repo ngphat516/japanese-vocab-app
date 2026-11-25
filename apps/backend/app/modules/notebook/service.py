@@ -26,6 +26,10 @@ async def require_word(db, user, word_id):
 
 
 async def fill_saved(db, user, descriptions):
+    if user is None:
+        for description in descriptions:
+            description["saved"] = False
+        return
     if not descriptions:
         return
     saved = set(
@@ -48,6 +52,8 @@ async def history_lock(db, user):
 
 
 async def record_history(db, user, word, query=None):
+    if user is None:
+        return  # guests have no search history
     await history_lock(db, user)
     stmt = insert(SearchHistory).values(
         user_id=user.id,

@@ -5,8 +5,8 @@ import json
 import unicodedata
 from pathlib import Path
 
-from sqlalchemy import and_, func, literal, or_, select, text, union_all
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import Integer, and_, any_, func, literal, not_, or_, select, text, union_all
+from sqlalchemy.dialects.postgresql import ARRAY, insert
 
 from app.core.exceptions import AppError
 from app.nlp.kanji import breakdown
@@ -381,7 +381,13 @@ def text_match_condition(column, query):
     return or_(substring, column.bool_op("%")(query))
 
 
-def search_sources(query, normalized, jlpt, entry_matches, visible_ids, lemma_forms=()):
+def non_jmdict_ids():
+    return select(Word.id).where(Word.jmdict_id.is_(None))
+
+
+def search_sources(
+    query, normalized, jlpt, entry_matches, visible_ids, lemma_forms=(), hidden_ids=None
+):
     exact = or_(Word.kanji == query, Word.kana_norm == normalized)
     prefix = or_(
         prefix_condition(Word.kanji, query),
@@ -430,15 +436,29 @@ def search_sources(query, normalized, jlpt, entry_matches, visible_ids, lemma_fo
             stmt = stmt.where(column.in_(select(Word.id).where(Word.jlpt_level == jlpt)))
         if visible_ids is not None:
             stmt = stmt.where(column.in_(visible_ids))
+        if hidden_ids:
+            # One array parameter, not an expanding IN list (asyncpg caps parameters).
+            stmt = stmt.where(not_(column == any_(literal(hidden_ids, ARRAY(Integer)))))
         filtered.append((stmt, rank))
     return filtered
 
 
 async def search_page(
-    db, query, normalized, jlpt, entry_matches, visible_ids, page, size, lemma_forms=()
+    db,
+    query,
+    normalized,
+    jlpt,
+    entry_matches,
+    visible_ids,
+    page,
+    size,
+    lemma_forms=(),
+    hidden_ids=None,
 ):
     await db.execute(text("SET LOCAL work_mem = '16MB'"))
-    sources = search_sources(query, normalized, jlpt, entry_matches, visible_ids, lemma_forms)
+    sources = search_sources(
+        query, normalized, jlpt, entry_matches, visible_ids, lemma_forms, hidden_ids
+    )
     # Filter text sources before DISTINCT/ORDER/LIMIT. Otherwise a generic plan
     # can walk the entire word_id index looking for a handful of text matches.
     prepared_sources = []

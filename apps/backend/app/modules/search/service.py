@@ -53,6 +53,7 @@ async def search(db, user, query, textbook_ids, jlpt, page, size, furigana=True)
         page,
         size,
         forms,
+        hidden_ids=await textbooks.hidden_word_ids(db, user),
     )
     entries = await textbooks.visible_entries(
         db, user, word_ids=[w.id for w in words], textbook_ids=textbook_ids, furigana=furigana
@@ -88,7 +89,8 @@ async def search(db, user, query, textbook_ids, jlpt, page, size, furigana=True)
 
 async def word_detail(db, user, word_id, furigana=True):
     word = await notebook.require_word(db, user, word_id)
-    await notebook.record_history(db, user, word)
+    if user is not None:
+        await notebook.record_history(db, user, word)
     description = await dictionary.describe(db, word)
     await notebook.fill_saved(db, user, [description])
     return {
