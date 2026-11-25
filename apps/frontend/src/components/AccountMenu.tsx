@@ -9,7 +9,8 @@ export function AccountMenu() {
   const nav = useNavigate();
   if (loading) return <span className="text-[13px] text-muted">…</span>;
   if (!user) {
-    const next = loc.pathname === '/login' ? '' : `?next=${encodeURIComponent(loc.pathname + loc.search)}`;
+    const onAuthPage = loc.pathname === '/login' || loc.pathname === '/register';
+    const next = onAuthPage ? '' : `?next=${encodeURIComponent(loc.pathname + loc.search)}`;
     return (
       <Link to={`/login${next}`} className="btn btn-secondary btn-sm no-underline">
         <LogIn aria-hidden="true" size={16} /> Đăng nhập

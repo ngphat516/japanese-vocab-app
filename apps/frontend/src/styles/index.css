@@ -3,6 +3,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Text in the accent hue. Raw --acc is < 4.5:1 on light surfaces in spring/summer/autumn,
+   so accent-coloured TEXT mixes in 30% --ink (derived, no hand-copied colours).
+   --acc itself stays for underlines, borders, shadows and the focus ring. */
+:root { --acc-text: color-mix(in srgb, var(--acc) 70%, var(--ink)); }
+
 @layer base {
   html { background: var(--bg); }
   body {
@@ -14,7 +19,7 @@
     -webkit-font-smoothing: antialiased;
   }
   a { color: var(--ink); }
-  a:hover { color: var(--acc); }
+  a:hover { color: var(--acc-text); }
   :focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
   rt { font-size: 0.5em; color: var(--muted); }
   u.target {

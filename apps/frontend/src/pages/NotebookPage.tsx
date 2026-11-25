@@ -127,7 +127,7 @@ function Card({ it, onRemove }: { it: SavedItem; onRemove: () => void }) {
       <Link to={`/?w=${w.id}`} lang="ja" className="font-serif text-[30px] font-bold leading-tight no-underline">
         {w.kanji || w.kana}
       </Link>
-      {w.hanviet && <div className="font-bold uppercase tracking-[0.04em] text-acc">《{w.hanviet.toUpperCase()}》</div>}
+      {w.hanviet && <div className="font-bold uppercase tracking-[0.04em] text-acc-text">《{w.hanviet.toUpperCase()}》</div>}
       {it.note && <div className="text-ink">{it.note}</div>}
       <div className="mt-[6px] flex flex-wrap items-center gap-[6px]">
         {src && <span className="border-2 border-light bg-light px-2 py-[2px] text-[12px] text-ink">{src}</span>}
@@ -168,7 +168,7 @@ function Table({ items, onRemove }: { items: SavedItem[]; onRemove: (id: number)
                 </Link>
               </td>
               <td lang="ja" className="jp px-3 py-2 text-muted">{it.word.kana}</td>
-              <td className="px-3 py-2 uppercase text-acc">{it.word.hanviet}</td>
+              <td className="px-3 py-2 uppercase text-acc-text">{it.word.hanviet}</td>
               <td className="px-3 py-2"><JlptBadge level={it.word.jlpt_level} /></td>
               <td className="px-3 py-2 text-[13px]">{sourceLabel(it) ?? '—'}</td>
               <td className="px-3 py-2 text-[13px]">{it.tags.map((t) => `#${t}`).join(' ') || '—'}</td>

@@ -17,7 +17,7 @@ function KanjiPanel({ char }: { char: string }) {
       <div className="flex items-start gap-4">
         <span lang="ja" className="font-serif text-[48px] font-bold leading-none">{k.char}</span>
         <div className="flex flex-col gap-1">
-          <span className="font-bold uppercase tracking-[0.04em] text-acc">
+          <span className="font-bold uppercase tracking-[0.04em] text-acc-text">
             {k.hanviet.length ? `《${k.hanviet.join(' · ').toUpperCase()}》` : '《—》'}
           </span>
           {k.meaning && <span className="text-ink">{k.meaning}</span>}

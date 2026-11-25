@@ -93,11 +93,11 @@ function Footer() {
           </div>
           <nav aria-label="Liên kết chân trang" className="flex flex-wrap gap-5">
             {['Giới thiệu', 'Nguồn dữ liệu', 'Góp ý'].map((l) => (
-              <a key={l} href="#" className="text-muted hover:text-acc">
+              <a key={l} href="#" className="text-muted hover:text-acc-text">
                 {l}
               </a>
             ))}
-            <a href="https://github.com/ngphat516/japanese-vocab-app" className="text-muted hover:text-acc" target="_blank" rel="noreferrer">
+            <a href="https://github.com/ngphat516/japanese-vocab-app" className="text-muted hover:text-acc-text" target="_blank" rel="noreferrer">
               GitHub
             </a>
           </nav>

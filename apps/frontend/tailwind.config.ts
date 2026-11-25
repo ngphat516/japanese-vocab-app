@@ -12,6 +12,7 @@ export default {
         card: v('card'),
         ink: v('ink'),
         acc: v('acc'),
+        'acc-text': v('acc-text'),
         light: v('light'),
         mid: v('mid'),
         muted: v('muted'),

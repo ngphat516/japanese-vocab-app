@@ -25,7 +25,7 @@ function Label({ children }: { children: ReactNode }) {
 function Related({ item }: { item: RelatedItem }) {
   if (item.word_id)
     return (
-      <Link to={`/?w=${item.word_id}`} className="text-ink underline decoration-2 underline-offset-4 hover:text-acc">
+      <Link to={`/?w=${item.word_id}`} className="text-ink underline decoration-2 underline-offset-4 hover:text-acc-text">
         <Ruby text={item.text} />
       </Link>
     );

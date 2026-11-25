@@ -40,7 +40,7 @@ export function WordOfSeason() {
         {match && (
           <button
             type="button"
-            className="ml-auto flex items-center gap-2 border-0 bg-transparent p-0 font-semibold uppercase text-ink hover:text-acc"
+            className="ml-auto flex items-center gap-2 border-0 bg-transparent p-0 font-semibold uppercase text-ink hover:text-acc-text"
             disabled={toggle.isPending || Boolean(match.saved)}
             onClick={() => toggle.mutate({ wordId: match.id, save: true })}
           >

@@ -133,7 +133,7 @@ export function WordDetailView({ data, examplesCount }: { data: WordDetail; exam
             </h3>
             <JlptBadge level={w.jlpt_level} />
           </div>
-          {w.hanviet && <div className="font-bold uppercase tracking-[0.04em] text-acc">《{w.hanviet.toUpperCase()}》</div>}
+          {w.hanviet && <div className="font-bold uppercase tracking-[0.04em] text-acc-text">《{w.hanviet.toUpperCase()}》</div>}
         </div>
         {user && (
           <button
